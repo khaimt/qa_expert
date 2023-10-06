@@ -4,12 +4,11 @@ python train.py \
     --validation_path merge/validation.json \
     --num_train_epochs 2 \
     --bf16 True \
-    --per_device_train_batch_size 16 \
-    --gradient_accumulation_steps 2 \
-    --per_device_eval_batch_size 16 \
-    --eval_accumulation_steps 16 \
+    --per_device_train_batch_size 20 \
+    --gradient_accumulation_steps 4 \
+    --per_device_eval_batch_size 20 \
     --evaluation_strategy "steps" \
-    --eval_steps 400 \
+    --eval_steps 2 \
     --save_strategy "steps" \
     --save_steps 10 \
     --save_total_limit 5 \
@@ -18,4 +17,5 @@ python train.py \
     --model_max_length 8192 \
     --gradient_checkpointing True \
     --output_dir models/qa_v1 \
-    --padding max_length
+    --padding max_length \
+    --max_sequence_length 1024

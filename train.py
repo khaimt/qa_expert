@@ -13,6 +13,7 @@ import transformers
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
+    LlamaForCausalLM,
     AutoTokenizer,
     LlamaTokenizer,
     BitsAndBytesConfig,
@@ -67,7 +68,7 @@ class ModelArguments:
 @dataclass
 class PaddingArguments:
     padding: Optional[str] = field(default="longest")
-    max_length: Optional[int] = field(default=4096)
+    max_sequence_length: Optional[int] = field(default=4096)
 
 
 @dataclass
@@ -92,7 +93,7 @@ class TrainingArguments(transformers.TrainingArguments):
     )
 
 
-def create_peft_config(modules):
+def create_peft_config():
     """
     Create Parameter-Efficient Fine-Tuning config for your model
     :param modules: Names of the modules to apply Lora to
@@ -100,7 +101,7 @@ def create_peft_config(modules):
     config = LoraConfig(
         r=16,  # dimension of the updated matrices
         lora_alpha=64,  # parameter for scaling
-        target_modules=modules,
+        target_modules=["q_proj", "v_proj"],
         lora_dropout=0.1,  # dropout probability for layers
         bias="none",
         task_type="CAUSAL_LM",
@@ -154,15 +155,18 @@ def load_model(pretrained_path, model_max_length, tokenizer):
         quantization_config=create_bnb_config(),
     )
     print("model = ", model)
+    print("print first time")
     print_trainable_parameters(model)
     model.resize_token_embeddings(len(tokenizer))
     model.config.pad_token_id = tokenizer.pad_token_id
     model = prepare_model_for_kbit_training(model)
     
+    
     modules = find_all_linear_names(model)
     print_rank0("linear modules: ", modules)  # ["query_key_value"]
     
-    model = get_peft_model(model, create_peft_config(modules))
+    model = get_peft_model(model, create_peft_config())
+    print("print final time")
     print_trainable_parameters(model)
     return model
 
@@ -178,7 +182,7 @@ def print_trainable_parameters(model):
     """
     trainable_params = 0
     all_param = 0
-    for _, param in model.named_parameters():
+    for name, param in model.named_parameters():
         num_params = param.numel()
         # if using DS Zero 3 and the weights are initialized empty
         if num_params == 0 and hasattr(param, "ds_numel"):
@@ -186,6 +190,7 @@ def print_trainable_parameters(model):
 
         all_param += num_params
         if param.requires_grad:
+            print(f"trainable: {name}, num_params: {num_params}")
             trainable_params += num_params
     print(
         f"all params: {all_param:,d} || trainable params: {trainable_params:,d} || trainable%: {100 * trainable_params / all_param}"
@@ -237,11 +242,11 @@ def train():
     # read data
     ds = load_dataset("json", data_files={"train": data_args.train_path, "validation": data_args.validation_path})
     print(ds)
-    print_rank0(f"padding_args: padding={padding_args.padding}, max_length: {padding_args.max_length}")
+    print_rank0(f"padding_args: padding={padding_args.padding}, max_length: {padding_args.max_sequence_length}")
     
     def generate_prompt(example):
         messages = convert_multi_qa_format_to_messages(example)
-        input_dic = preprare_training_inputs(messages, tokenizer, padding=padding_args.padding, max_length=padding_args.max_length)
+        input_dic = preprare_training_inputs(messages, tokenizer, padding=padding_args.padding, max_length=padding_args.max_sequence_length)
         return input_dic
     
     original_columns = list(ds["train"].features.keys())
