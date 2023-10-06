@@ -1,0 +1,6 @@
+bitsandbytes
+peft
+datasets
+torch
+transformers
+pydantic==2.4.2

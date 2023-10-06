@@ -1,0 +1,21 @@
+python train.py \
+    --model_name_or_path NousResearch/Llama-2-7b-hf  \
+    --train_path merge/train.json \
+    --validation_path merge/validation.json \
+    --num_train_epochs 2 \
+    --bf16 True \
+    --per_device_train_batch_size 16 \
+    --gradient_accumulation_steps 2 \
+    --per_device_eval_batch_size 16 \
+    --eval_accumulation_steps 16 \
+    --evaluation_strategy "steps" \
+    --eval_steps 400 \
+    --save_strategy "steps" \
+    --save_steps 10 \
+    --save_total_limit 5 \
+    --learning_rate 2e-5 \
+    --logging_steps 1 \
+    --model_max_length 8192 \
+    --gradient_checkpointing True \
+    --output_dir models/qa_v1 \
+    --padding max_length
