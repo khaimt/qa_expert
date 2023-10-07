@@ -1,6 +1,6 @@
 python train.py \
-    --model_name_or_path NousResearch/Llama-2-7b-hf  \
-    --model_type llama \
+    --model_name_or_path pretrained/Mistral-7B-v0.1  \
+    --model_type mistral \
     --train_path merge/train.json \
     --validation_path merge/validation.json \
     --num_train_epochs 2 \
@@ -17,6 +17,6 @@ python train.py \
     --logging_steps 1 \
     --model_max_length 8192 \
     --gradient_checkpointing True \
-    --output_dir models/qa_v1 \
+    --output_dir models/qa_v1_mistral \
     --padding max_length \
     --max_sequence_length 1024

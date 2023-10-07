@@ -63,6 +63,13 @@ def set_seed(seed):
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="meta-llama/Llama-2-7b-hf")
+    model_type: str = field(default="llama")
+    model_max_length: int = field(
+        default=4096,
+        metadata={
+            "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
+        },
+    )
 
 
 @dataclass
@@ -85,15 +92,9 @@ class DataArguments:
 class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
     optim: str = field(default="adamw_torch")
-    model_max_length: int = field(
-        default=4096,
-        metadata={
-            "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
-        },
-    )
 
 
-def create_peft_config():
+def create_peft_config(modules):
     """
     Create Parameter-Efficient Fine-Tuning config for your model
     :param modules: Names of the modules to apply Lora to
@@ -101,7 +102,7 @@ def create_peft_config():
     config = LoraConfig(
         r=16,  # dimension of the updated matrices
         lora_alpha=64,  # parameter for scaling
-        target_modules=["q_proj", "v_proj"],
+        target_modules=modules,
         lora_dropout=0.1,  # dropout probability for layers
         bias="none",
         task_type="CAUSAL_LM",
@@ -134,24 +135,27 @@ def find_all_linear_names(model):
     return list(lora_module_names)
 
 
-def load_model(pretrained_path, model_max_length, tokenizer):
+def load_model(training_args, model_args, tokenizer):
     # Set RoPE scaling factor
     config = transformers.AutoConfig.from_pretrained(
-        pretrained_path
+        model_args.model_name_or_path
     )
-    orig_ctx_len = getattr(config, "max_position_embeddings", None)
-    print(f"original context length: {orig_ctx_len}, extended to: {model_max_length}")
-    if orig_ctx_len and model_max_length > orig_ctx_len:
-        scaling_factor = float(math.ceil(model_max_length / orig_ctx_len))
-        config.rope_scaling = {"type": "linear", "factor": scaling_factor}
-    config.use_cache = False
+    if model_args.model_type == "llama":
+        model_max_length = model_args.model_max_length
+        orig_ctx_len = getattr(config, "max_position_embeddings", None)
+        print(f"rope scaling for llamam original context length: {orig_ctx_len}, extended to: {model_max_length}")
+        if orig_ctx_len and model_max_length > orig_ctx_len:
+            scaling_factor = float(math.ceil(model_max_length / orig_ctx_len))
+            config.rope_scaling = {"type": "linear", "factor": scaling_factor}
+        config.use_cache = False
     
     
     model =AutoModelForCausalLM.from_pretrained(
-        pretrained_path,
+        model_args.model_name_or_path,
         config=config,
         device_map="auto",
         trust_remote_code=True,
+        use_flash_attention_2=True,
         quantization_config=create_bnb_config(),
     )
     print("model = ", model)
@@ -165,7 +169,7 @@ def load_model(pretrained_path, model_max_length, tokenizer):
     modules = find_all_linear_names(model)
     print_rank0("linear modules: ", modules)  # ["query_key_value"]
     
-    model = get_peft_model(model, create_peft_config())
+    model = get_peft_model(model, create_peft_config(modules))
     print("print final time")
     print_trainable_parameters(model)
     return model
@@ -180,8 +184,9 @@ def print_trainable_parameters(model):
     """
     Prints the number of trainable parameters in the model.
     """
-    trainable_params = 0
+    lora_param_count = 0
     all_param = 0
+    embedding_lm_head_param_count = 0
     for name, param in model.named_parameters():
         num_params = param.numel()
         # if using DS Zero 3 and the weights are initialized empty
@@ -190,10 +195,14 @@ def print_trainable_parameters(model):
 
         all_param += num_params
         if param.requires_grad:
-            print(f"trainable: {name}, num_params: {num_params}")
-            trainable_params += num_params
+            print_rank0(f"trainable: {name}, num_params: {num_params}")
+            if "lm_head" in name or "embed_tokens" in name:
+                embedding_lm_head_param_count += num_params
+            else:
+                lora_param_count += num_params
+    trainable_params = embedding_lm_head_param_count + lora_param_count
     print(
-        f"all params: {all_param:,d} || trainable params: {trainable_params:,d} || trainable%: {100 * trainable_params / all_param}"
+        f"all params: {all_param:,d} || trainable params: {trainable_params:,d} || trainable%: {100 * trainable_params / all_param}|| embedding_lm_head_param_count={embedding_lm_head_param_count}||loara_param={lora_param_count}"
     )
 
 
@@ -232,8 +241,12 @@ def train():
     pretrained_model = model_args.model_name_or_path
     
     # initialize tokenizer 
-    tokenizer = LlamaTokenizer.from_pretrained(pretrained_model, legacy=True)
-    tokenizer.pad_token = tokenizer.eos_token  # Llama needs this
+    if model_args.model_type == "llama":
+        tokenizer = LlamaTokenizer.from_pretrained(pretrained_model, legacy=True)
+        tokenizer.pad_token = tokenizer.eos_token  # Llama needs this
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(pretrained_model)
+    print("tokenizer: ", tokenizer)
     added_tokens = [tok.value for tok in SpecialToken]
     print("added token: ", added_tokens)
     tokenizer.add_tokens(added_tokens)
@@ -255,7 +268,7 @@ def train():
     print("ds after removing columns: ", ds)
     # just print out to see if there are any errors
     print_some_examples(ds["train"], tokenizer)
-    model = load_model(pretrained_model, training_args.model_max_length, tokenizer)
+    model = load_model(training_args, model_args, tokenizer)
     
     train_ds, valid_ds = ds["train"], ds["validation"]
     print_rank0(f"train_size: {len(train_ds)}; validation_size: {len(valid_ds)}")
