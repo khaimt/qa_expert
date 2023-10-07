@@ -134,7 +134,7 @@ def convert_multi_qa_format_to_messages(qa_item: Dict) -> List[Message]:
             messages.append({"role": Role.assistant, "content": pre_answer, "function_call": {"name": "retrieve", "arguments": json.dumps(args, ensure_ascii=False)}})
             messages.append({"role": Role.function, "content": sub["paragraph"]})
             pre_answer = sub["long_answer"].strip()
-        messages.append({"role": Role.assistant, "content": pre_answer + "\nSummary:" + qa_item["final_answer"]})
+        messages.append({"role": Role.assistant, "content": pre_answer + "\nSummary: " + qa_item["final_answer"].strip()})
     else:
         args = {"query": question}
         messages.append({"role": Role.assistant, "content": None, "function_call": {"name": "retrieve", "arguments": json.dumps(args, ensure_ascii=False)}})

@@ -9,15 +9,15 @@ python train.py \
     --gradient_accumulation_steps 4 \
     --per_device_eval_batch_size 22 \
     --evaluation_strategy "steps" \
-    --eval_steps 3 \
+    --eval_steps 40 \
     --save_strategy "steps" \
-    --save_steps 2 \
+    --save_steps 80 \
     --save_total_limit 5 \
     --learning_rate 4e-5 \
-    --logging_steps 1 \
+    --logging_steps 4 \
     --model_max_length 8192 \
     --gradient_checkpointing True \
     --output_dir models/qa_v1_mistral \
-    --padding max_length \
+    --padding longest \
     --max_sequence_length 1350 \
     --report_to wandb

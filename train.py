@@ -1,5 +1,8 @@
 #  https://blog.ovhcloud.com/fine-tuning-llama-2-models-using-a-single-gpu-qlora-and-ai-notebooks/
 # https://colab.research.google.com/drive/1VoYNfYDKcKRQRor98Zbf2-9VQTtGJ24k?usp=sharing#scrollTo=Ybeyl20n3dYH
+import os
+os.environ["WANDB_PROJECT"] = "qa_expert" # log to your project 
+os.environ["WANDB_LOG_MODEL"] = "all" # log your models
 from datasets import load_dataset
 from peft import (
     LoraConfig,
@@ -17,6 +20,7 @@ from transformers import (
     AutoTokenizer,
     LlamaTokenizer,
     BitsAndBytesConfig,
+    MistralForCausalLM
 )
 import torch 
 import math
@@ -34,8 +38,9 @@ print('local rank: ', LOCAL_RANK)
 
 class DataCollatorForMaskingLabels:
     
-    def __init__(self, tokenizer) -> None:
+    def __init__(self, tokenizer, padding_side = "left") -> None:
         self.tokenizer = tokenizer
+        self.padding_side = padding_side
         
     def __call__(self, examples, return_tensors=None) -> Any:
         input_lengs = []
@@ -48,7 +53,10 @@ class DataCollatorForMaskingLabels:
         for example in examples:
             pad_leng = max_leng - len(example["input_ids"])
             for key in result:
-                result[key].append(example[key] + [added_pad_dic[key] for _ in range(pad_leng)])
+                if self.padding_side == "right":
+                    result[key].append(example[key] + [added_pad_dic[key] for _ in range(pad_leng)])
+                else:
+                    result[key].append([added_pad_dic[key] for _ in range(pad_leng)] + example[key])
                 
         for key in result:
             result[key] = torch.tensor(result[key])
@@ -159,10 +167,9 @@ def load_model(training_args, model_args, tokenizer):
         quantization_config=create_bnb_config(),
     )
     print("model = ", model)
-    print("print first time")
-    print_trainable_parameters(model)
     model.resize_token_embeddings(len(tokenizer))
     model.config.pad_token_id = tokenizer.pad_token_id
+    model.gradient_checkpointing_enable()
     model = prepare_model_for_kbit_training(model)
     
     
@@ -207,7 +214,7 @@ def print_trainable_parameters(model):
 
 
 def print_some_examples(ds, tokenizer):
-    data_loader = DataLoader(ds, batch_size=3, collate_fn=DataCollatorForMaskingLabels(tokenizer))
+    data_loader = DataLoader(ds, batch_size=3, collate_fn=DataCollatorForMaskingLabels(tokenizer, "left"))
     count = 0
     for batch in data_loader:
         if count == 0:
@@ -241,16 +248,17 @@ def train():
     pretrained_model = model_args.model_name_or_path
     
     # initialize tokenizer 
-    if model_args.model_type == "llama":
-        tokenizer = LlamaTokenizer.from_pretrained(pretrained_model, legacy=True)
-        tokenizer.pad_token = tokenizer.eos_token  # Llama needs this
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(pretrained_model)
-    print("tokenizer: ", tokenizer)
+    #if model_args.model_type == "llama":
+    tokenizer = LlamaTokenizer.from_pretrained(pretrained_model, legacy=True)
+    tokenizer.pad_token = tokenizer.eos_token  # Llama needs this
+    if model_args.model_type == "mistral":
+        print_rank0("set padding_side = left for Mistral")
+        tokenizer.padding_side  = 'left'
     added_tokens = [tok.value for tok in SpecialToken]
     print("added token: ", added_tokens)
     tokenizer.add_tokens(added_tokens)
     print("total number of tokens: ", len(tokenizer))
+    print("tokenizer: ", tokenizer)
     
     # read data
     ds = load_dataset("json", data_files={"train": data_args.train_path, "validation": data_args.validation_path})
@@ -278,7 +286,7 @@ def train():
         train_dataset=train_ds,
         eval_dataset=valid_ds,
         args=training_args,
-        data_collator=DataCollatorForMaskingLabels(tokenizer),
+        data_collator=DataCollatorForMaskingLabels(tokenizer, "left"),
     )
     model.config.use_cache = False
     
