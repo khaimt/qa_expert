@@ -39,3 +39,11 @@ def save_jsonl(data, path):
     with open(path, "w") as f:
         for item in data:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
+
+
+def beautify_json(path):
+    with open(path, "r") as f:
+        data = json.loads(f.read())
+    with open(path, "w") as f:
+        text = json.dumps(data, ensure_ascii=False, indent=4)
+        f.write(text)

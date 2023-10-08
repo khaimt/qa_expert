@@ -5,4 +5,5 @@ torch
 transformers==4.34.0
 pydantic==2.4.2
 scipy==1.11.3
+typer
 # pip install flash-attn --no-build-isolation

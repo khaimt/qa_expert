@@ -9,14 +9,6 @@ import numpy as np
 from inference import HFInference
 
 
-def beautify_json(path):
-    with open(path, "r") as f:
-        data = json.loads(f.read())
-    with open(path, "w") as f:
-        text = json.dumps(data, ensure_ascii=False, indent=4)
-        f.write(text)
-
-
 def create_paragraph(title, sens):
     return ". ".join(sens + [title])
 
@@ -27,7 +19,9 @@ def evaluate_hotpot_qa(test_path: str = "datasets/evaluation/hotpot_dev_fullwiki
     examples = utility.read_json(test_path)
     print("number of items: ", len(examples))
     for example in examples:
+        print("-----------------------------------------------------")
         question = example["question"]
+        print("question: ", question)
         answer = example["answer"]
         context = example["context"]
         paragraphs = [create_paragraph(p[0], p[1]) for p in context]

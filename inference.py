@@ -18,13 +18,13 @@ def parse_function_info(function_info: str) -> Optional[FunctionCall]:
 def parse_generated_content(generated_content: str) -> Message:
     # check if we need to call function or not; pattern == <|bof|>function_content<|eof|>
     # <|bof|> retrieve:\n{"query": "where does the joy luck club take place"} <|eof|>
-    match = re.search("<\|bof\|>(?P<func_info>.*)<\|eof\|>", generated_content)
+    match = re.search("<\|bof\|>(?P<func_info>(.|\n)*)<\|eof\|>", generated_content)
     if match is not None:
-        func_info = match.group("func_info")
+        func_info = match.group("func_info").strip()
         function_call = parse_function_info(func_info)
         start = match.start()
         content = generated_content[: start].strip()
-        if len(content) == None:
+        if len(content) == 0:
             content = None
         return Message(role=Role.assistant, content=content, function_call=function_call)
     return Message(role=Role.assistant, content=generated_content)
@@ -41,6 +41,13 @@ class ModelInference(ABC):
     def generate_message(self, messages: List[Message], temperature=0.001) -> Message:
         prompt = get_prompt_from_messages(messages + [Message(role=Role.assistant)]) 
         generated_content = self.generate(prompt, temperature)
+        # print("-------prompt to gen: ")
+        # print(prompt)
+        # print("-------")
+        # print("generated content: ")
+        # print(generated_content)
+        # print("----------------")
+        
         return parse_generated_content(generated_content)
     
     def generate_answer(self, question: str, retriever_func: Callable, temperature=0.001, verbose=False) -> str:
@@ -75,6 +82,7 @@ class HFInference(ModelInference):
             use_flash_attention_2=True,
             torch_dtype=torch.bfloat16,
         )
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         self.eos_token_id = self.tokenizer.encode(SpecialToken.eot)[-1]
     
     def generate(self, prompt: str, temperature: float = 0.001) -> str:
@@ -85,7 +93,6 @@ class HFInference(ModelInference):
         output_ids = output[0].tolist()
         generated_ids = output_ids[input_ids.shape[1]: ]
         if generated_ids[-1] == self.eos_token_id:  # remove end_of_turn if existed
-            print("remove end of turn: ...")
             generated_ids = generated_ids[: -1]
         generated_content = self.tokenizer.decode(generated_ids)
         return generated_content
