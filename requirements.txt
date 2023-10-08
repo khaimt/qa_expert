@@ -1,6 +1,6 @@
 bitsandbytes
 peft
-datasets
+datasets==2.8.0
 torch
 transformers==4.34.0
 pydantic==2.4.2
