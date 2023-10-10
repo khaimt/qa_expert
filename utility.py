@@ -1,6 +1,7 @@
 import json 
 from pathlib import Path
 import os
+import sys
 
 
 def read_text(path):
@@ -47,3 +48,11 @@ def beautify_json(path):
     with open(path, "w") as f:
         text = json.dumps(data, ensure_ascii=False, indent=4)
         f.write(text)
+
+
+def main():
+    beautify_json(sys.argv[1])
+
+
+if __name__ == "__main__":
+    main()
