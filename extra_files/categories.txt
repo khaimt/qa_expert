@@ -1,0 +1,18 @@
+Businessman, celebrity, politician, sport star, singer, musician, historical figure, president, explorer, inventor, 
+physician, mathematician, artist, writer, composer, philosopher, dancer, athlete, scientist, comedian, actress
+Company, Company Group, Sports League, Sport, sport team, Political Party, Military
+Region, Country, City, Province, county
+Mountain, Island, River, Lake, Sea, Bay
+Star, Planet, Constellation
+public Institution, University, High School, Research Institute, Park, Market, Sports Facility, Zoo, Amusement Park, Airport
+Port, School, Museum, Worship Place, Theater, Station, Bridge, Canal, Tunnel, railroad, Road
+Restaurant, beach, public library, hospital, hotel, resort
+Material, Drug, Weapon, Decoration, Service
+Car, Electric Car, Train, Aircraft, Ship, Spaceship, Smart Phone, Fashion, laptop
+Asisan Food, European Food, American Food
+Movie, Show, Book, Music, Broadcast Program, Magazine, Newspaper, Culture
+Method, Concept, Phenomenon, theory, Process, Movement, Treaty, Law
+Game show, Game, conference, Religious Festival, War, Natural Phenomenon, Natural Disaster, Earthquake
+Fungus, Insect, Fish, Reptile, Bird, Mammal, Flora, Disease, flower
+Game, Job, Disease, Weapon, Award
+language

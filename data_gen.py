@@ -140,30 +140,25 @@ class GenTask(ABC):
             estimated_total_money = avg_tokens * total_count * 0.0015 / 1000
             current_money = acc_tokens * 0.0015 / 1000
 
-            print(f"{handled_count}/{total_count}, avg_time: {avg_time}, remaining time: {avg_time * remaining_count}, \
-                  avg_token: {avg_tokens}, current_money: {current_money}, total_money: {estimated_total_money}")
+            print((f"{handled_count}/{total_count}, avg_time: {avg_time}, remaining time: {avg_time * remaining_count},"
+                  f"avg_token: {avg_tokens}, current_money: {current_money}, total_money: {estimated_total_money}"))
 
     
 class GenAnswer(GenTask):
     def __init__(self, save_path: str, **kwargs) -> None:
         super().__init__(save_path, **kwargs)
         input_path = kwargs["input_path"]
-        if len(self.result) == 0:
-            self.result = utility.read_json(input_path)
+        self.input_items = utility.read_json(input_path)
         self.sub_question_prompt = utility.read_text(kwargs["subquestion_prompt"])
         self.final_question_prompt = utility.read_text(kwargs["final_prompt"])
     
     def get_items_for_handling(self):
-        for item in self.result:
-            if "final_answer" not in item or item["final_answer"] is None:
+        # start generating
+        for item in self.input_items[len(self.result): ]:
                 yield item
     
     def count_number_of_remaining_items(self) -> int:
-        count = 0
-        for item in self.result:
-            if "final_answer" not in item or item["final_answer"] is None:
-                count += 1
-        return count
+        return len(self.input_items) - len(self.result)
     
     def handle_item(self, item: Any) -> Dict:
         subs = item["sub_questions"]
@@ -221,19 +216,28 @@ class GenComparisonQA(GenTask):
         print("list of category: ", self.categories)
         
         # update the current number of items in each category 
-        self.category_count = {cat: 0 for cat in categories}
+        self.current_category_count = {cat: 0 for cat in categories}
         for item in self.result:
-            self.category_count[item["category"]] += 1
+            self.current_category_count[item["category"]] += 1
+        
+        # compute the remaining number for each category
+        self.category_count = {}  # mapping from category --> number of items 
+        for category in self.current_category_count:
+            self.category_count[category] = self.num_items_per_category - self.current_category_count[category]
+            if self.category_count[category] < 0:  # no need to call
+                self.category_count[category] = 0
     
     def count_number_of_remaining_items(self) -> int:
         return self.num_items_per_category * len(self.categories) - len(self.result)
     
     def get_items_for_handling(self):
-        for _ in range(self.num_items_per_category):
+        while len(self.category_count) > 0:
             for category in self.categories:
-                if self.category_count[category] > self.num_items_per_category:  # this category has been done
-                    continue 
-                yield category
+                if self.category_count[category] > 0:  # if still need to generate for this category
+                    self.category_count[category] -= 1
+                    if self.category_count[category] == 0:  # delete if this category is done
+                        del self.category_count[category]
+                    yield category
     
     def handle_item(self, item: Any) -> Dict:
         for _ in range(10):
@@ -258,9 +262,18 @@ def fill_in_sub_answers_long_answers(input_path, save_path):
     }
     task = GenAnswer(save_path, **kwargs)
     task.run()
-                
+
+
+def check():
+    path = "datasets/raw_data/gen_data/good.json"
+    items = utility.read_json(path)
+    print("number of items: ", len(items))
+    path2 = "datasets/processed_data/gen.json"
+    print("number of gen: ", len(utility.read_json(path2)))                
+
 
 if __name__ == "__main__":
+    #check()
     #generate_comparison_data_points("datasets/raw_data/gen_data/comparison.json")
-    generate_comparison_data_points("datasets/raw_data/gen_data/comparison_add_new2.json", 10)
-    #fill_in_sub_answers_long_answers("datasets/raw_data/gen_data/comparison.json", "datasets/raw_data/gen_data/filled.json")
+    #generate_comparison_data_points("datasets/raw_data/gen_data/comparison_add_new2.json", 15)
+    fill_in_sub_answers_long_answers("datasets/raw_data/gen_data/small.json", "datasets/raw_data/gen_data/small_test.json")

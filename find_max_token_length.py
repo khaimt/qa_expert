@@ -1,6 +1,7 @@
 from transformers import LlamaTokenizer
 import os, json, sys
 import prompt_utils
+import typer
 
 
 def read_json(path):
@@ -8,7 +9,7 @@ def read_json(path):
         return json.loads(f.read())
 
 
-def compute(pretrained_path, data_folder, threshold):
+def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Argument(default=1024)):
     tokenizer = LlamaTokenizer.from_pretrained(pretrained_path, legacy=True)
     tokenizer.pad_token = tokenizer.eos_token
     added_tokens = [tok.value for tok in prompt_utils.SpecialToken]
@@ -46,4 +47,4 @@ def compute(pretrained_path, data_folder, threshold):
     
 
 if __name__ == "__main__":
-    compute(sys.argv[1], sys.argv[2], int(sys.argv[3]))
+    typer.run(compute)

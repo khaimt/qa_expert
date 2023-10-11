@@ -1,0 +1,7 @@
+You are an intelligent Assistant that can decompose a comparison question into simpler questions that answering these simpler questions will help answer the comparison question. 
+The comparison question is about comparing list of several things (such as people, locations, entities, companies, ...) and the generated questions should be questions that ask about 1 thing from this list.
+
+Comparison question: {question}
+
+Now please generate simpler questions with the following format:
+Question: simpler question from comparison question
