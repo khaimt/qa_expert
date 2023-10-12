@@ -1,7 +1,12 @@
 from transformers import LlamaTokenizer
-import os, json, sys
-import prompt_utils
+import os
+import json
+import sys
+from typing import Dict
 import typer
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from qa_expert import prompt_utils
 
 
 def read_json(path):
@@ -14,7 +19,7 @@ def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Argum
     tokenizer.pad_token = tokenizer.eos_token
     added_tokens = [tok.value for tok in prompt_utils.SpecialToken]
     tokenizer.add_tokens(added_tokens)
-    leng_dic = {}
+    leng_dic: Dict[int, int] = {}
     sum_length = 0
     count = 0
     for ds in ["train", "validation", "test"]:
@@ -30,7 +35,7 @@ def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Argum
             leng_dic[length] = leng_dic.get(length, 0) + 1
             sum_length += length
             count += 1
-    
+
     sorted_keys = sorted(list(leng_dic.keys()), key=lambda x: -x)
     total_count = 0
     for key in sorted_keys:
@@ -44,7 +49,7 @@ def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Argum
     print("number of leng: ", len(leng_dic))
     print("max_leng: ", max_leng, "frequencies: ", leng_dic[max_leng])
     print("distribution over top 50")
-    
+
 
 if __name__ == "__main__":
     typer.run(compute)

@@ -1,4 +1,4 @@
-import json 
+import json
 from pathlib import Path
 import os
 import sys
@@ -13,7 +13,7 @@ def create_folder(folder: str):
     if os.path.exists(folder):
         return
     path = Path(folder)
-    path.mkdir(parents=True)    
+    path.mkdir(parents=True)
 
 
 def read_jsonl(path):
