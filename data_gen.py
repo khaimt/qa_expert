@@ -7,8 +7,7 @@ import time
 import re
 from abc import ABC, abstractmethod
 from typing import Any, Union, Dict, List, Tuple, Callable
-
-# openai.api_base = "http://localhost:8000/v1"
+import json
 
 
 def get_response_from_chat_model(input_dic: Dict) -> Dict[str, Any]:
@@ -111,7 +110,8 @@ class GenTask(ABC):
         self.save_path = save_path
         self.result = []
         if os.path.exists(save_path):
-            self.result = utility.read_json(save_path)
+            with open(save_path, "r") as f:
+                self.result = json.loads(f.read())
 
     @abstractmethod
     def count_number_of_remaining_items(self) -> int:

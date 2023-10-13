@@ -6,21 +6,47 @@ import torch
 from sentence_transformers import SentenceTransformer, util
 from qa_expert.prompt_utils import SpecialToken, get_prompt_from_messages, Message, Role
 import numpy as np
-from qa_expert.inference import HFInference
+from qa_expert.hf_inference import HFInference
+from qa_expert.base_inference import ModelInference
+import requests
+import shutil
+import os
 
 
 def create_paragraph(title, sens):
     return ". ".join(sens + [title])
 
 
+def download_file(url: str) -> str:
+    local_filename = url.split("/")[-1]
+    with requests.get(url, stream=True) as r:
+        with open(local_filename, "wb") as f:
+            shutil.copyfileobj(r.raw, f)  # type: ignore
+
+    return local_filename
+
+
 def evaluate_hotpot_qa(
-    test_path: str = "datasets/evaluation/hotpot_dev_fullwiki_v1.json",
-    model_path: str = "khaimaitien/qa_expert",
-    retriever_path: str = "intfloat/e5-base-v2",
+    model_path: str = typer.Option(default="khaimaitien/qa_expert"),
+    retriever_path: str = typer.Option(default="intfloat/e5-base-v2"),
+    hotpot_qa_dev_path: str = typer.Option(default=""),
+    inference_type: str = typer.Option(default="hf"),
 ):
-    model_inference = HFInference(model_path)
+    if len(hotpot_qa_dev_path) == 0:
+        hotpot_qa_dev_path = "hotpot_dev_distractor_v1.json"
+        if not os.path.exists((hotpot_qa_dev_path)):
+            print("hotpot_dev_distractor_v1.json doesn't exist, start downloading now !")
+            hotpot_qa_dev_path = download_file("http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_distractor_v1.json")
+            print("finish downloading hotpot_dev_distractor_v1.json ")
+    assert inference_type in ["hf", "vllm"]
+    if inference_type == "hf":
+        model_inference: ModelInference = HFInference(model_path)
+    else:
+        from qa_expert.vllm_inference import VllmInference
+
+        model_inference = VllmInference(model_path)
     retriever = SentenceTransformer(retriever_path)
-    examples = utility.read_json(test_path)
+    examples = utility.read_json(hotpot_qa_dev_path)
     print("number of items: ", len(examples))
     for example in examples:
         print("-----------------------------------------------------")
@@ -41,7 +67,8 @@ def evaluate_hotpot_qa(
             return " ".join(contexts)
 
         pred_answer = model_inference.generate_answer(question, retrieve, verbose=True)
-        print(f"pred_answer: {pred_answer}; answer: {answer}")
+        print(f"pred_answer: {pred_answer};")
+        print(f"correct answer: {answer}")
 
 
 if __name__ == "__main__":

@@ -4,12 +4,13 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from transformers import AutoModelForCausalLM, LlamaTokenizer
 from qa_expert.prompt_utils import SpecialToken
-from peft import PeftModel, PeftConfig
+from peft import PeftModel
 import torch
+import typer
 
 
-def merge_weight(save_folder, pretrained, checkpoint, model_type="mistral"):
-    tokenizer = LlamaTokenizer.from_pretrained(pretrained, legacy=True)
+def merge_weight(save_folder: str, pretrained_path: str, checkpoint: str, model_type=typer.Option(default="mistral")):
+    tokenizer = LlamaTokenizer.from_pretrained(pretrained_path, legacy=True)
     tokenizer.pad_token = tokenizer.eos_token  # Llama needs this
     if model_type == "mistral":
         print("set padding_side = left for Mistral")
@@ -19,7 +20,7 @@ def merge_weight(save_folder, pretrained, checkpoint, model_type="mistral"):
     tokenizer.add_tokens(added_tokens)
 
     model = AutoModelForCausalLM.from_pretrained(
-        pretrained,
+        pretrained_path,
         device_map="auto",
         trust_remote_code=True,
         use_flash_attention_2=True,
@@ -35,9 +36,5 @@ def merge_weight(save_folder, pretrained, checkpoint, model_type="mistral"):
     print("final lora model: ", lora_model)
 
 
-def main():
-    merge_weight("merged_models/mistral", "pretrained/Mistral-7B-v0.1", "models/qa_v1_mistral/checkpoint-400")
-
-
 if __name__ == "__main__":
-    main()
+    typer.run(merge_weight)

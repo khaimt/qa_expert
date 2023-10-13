@@ -9,11 +9,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from qa_expert import prompt_utils
 
 
-def read_json(path):
-    with open(path, "r") as f:
-        return json.loads(f.read())
-
-
 def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Argument(default=1024)):
     tokenizer = LlamaTokenizer.from_pretrained(pretrained_path, legacy=True)
     tokenizer.pad_token = tokenizer.eos_token
@@ -26,7 +21,8 @@ def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Argum
         path = os.path.join(data_folder, f"{ds}.json")
         if not os.path.exists(path):
             continue
-        examples = read_json(path)
+        with open(path, "r") as f:
+            examples = json.loads(f.read())
         print(f"handle: {path}, number of examples: {len(examples)}")
         for example in examples:
             messages = prompt_utils.convert_multi_qa_format_to_messages(example)
