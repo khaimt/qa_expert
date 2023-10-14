@@ -3,14 +3,14 @@
 QA Expert is a Language Model (LLM) specifically fine-tuned for the task of Question Answering, with a strong emphasis on addressing Multi-hop Question Answering scenarios.
 
 <p align="center">
-  <img src="assets/1-shot-example.jpg", width="450", height="375">
+  <img src="assets/1-shot-example.jpg", width="375", height="325">
 </p>
 <p align="center">
 An example of 1-shot question (single question) and how QA Expert LLM handle multi-hop Q&A</p>
 
 <p align="center">
-  <img src="assets/hotpot_qa_bridge.jpg", width="450", height="375">
-  <img src="assets/hotpot_qa_compare.jpg", width="450", height="375">
+  <img src="assets/hotpot_qa_bridge.jpg", width="375", height="325">
+  <img src="assets/hotpot_qa_compare.jpg", width="375", height="325">
 </p>
 <p align="center">
 Examples of 2-shot questions and how QA Expert LLM handle multi-hop Q&A. The left is an example of bridging entitiy and the right is an example of comparing entities</p>
@@ -24,7 +24,7 @@ QA Expert will analyze the question and the retrieval result to decide whether a
 
 ## Content
 1. [Usage](#usage)
-2. [Training data](#training-data)
+2. [Fine-tuning Data](#fine-tuning-data)
 3. [Fine-tuning](#fine-tuning)
 4. [Citation](#citation)
 
