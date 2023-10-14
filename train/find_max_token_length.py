@@ -9,7 +9,29 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from qa_expert import prompt_utils
 
 
-def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Argument(default=1024)):
+def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Option(default=1024)):
+    """_summary_
+
+    Args:
+        pretrained_path (str): the pretrained model
+        data_folder (str): The folder containing train.json and validation.json
+        threshold (int, optional): The threshold that we will output the statistics of the number of data points with length bigger than this threshold
+        For example, if threshold=1024, the script will output:
+
+        length=2509, count=1, acc_count: 1
+        length=2354, count=1, acc_count: 2
+        length=2097, count=1, acc_count: 3
+        length=2071, count=1, acc_count: 4
+        ...
+        length=1028, count=8, acc_count: 1235
+        length=1027, count=7, acc_count: 1242
+        length=1026, count=7, acc_count: 1249
+        length=1025, count=3, acc_count: 1252
+
+        + count: the number of data points with this length;
+        + acc_count: the number of total data points longer than or equal this length
+        --> the purpose is to support us to choose the max_sequence_length in finetuning
+    """
     tokenizer = LlamaTokenizer.from_pretrained(pretrained_path, legacy=True)
     tokenizer.pad_token = tokenizer.eos_token
     added_tokens = [tok.value for tok in prompt_utils.SpecialToken]
@@ -44,7 +66,6 @@ def compute(pretrained_path: str, data_folder: str, threshold: int = typer.Argum
     max_leng = max(list(leng_dic.keys()))
     print("number of leng: ", len(leng_dic))
     print("max_leng: ", max_leng, "frequencies: ", leng_dic[max_leng])
-    print("distribution over top 50")
 
 
 if __name__ == "__main__":

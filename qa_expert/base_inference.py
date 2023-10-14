@@ -32,10 +32,21 @@ class ModelInference(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def generate(self, prompt: str, temperature: float = 0.001) -> str:
+    def generate(self, prompt: str, temperature: float = 0) -> str:
         raise NotImplementedError
 
-    def get_retrieval_query(self, question: str, temperature: float = 0.001) -> Optional[str]:
+    def generate_answer_for_single_question(
+        self, question: str, context: str, temperature: float = 0.001
+    ) -> Optional[str]:
+        messages = [
+            Message(role=Role.user, content=question),
+            Message(role=Role.assistant, content=None, function_call=FunctionCall.from_query(question)),
+            Message(role=Role.function, content=context),
+        ]
+        res_message = self.generate_message(messages, temperature=temperature)
+        return res_message.content
+
+    def get_retrieval_query(self, question: str, temperature: float = 0) -> Optional[str]:
         messages = [Message(role=Role.user, content=question)]
         assistant_message = self.generate_message(messages, temperature)
         if assistant_message.function_call is not None:  # call function
@@ -45,13 +56,13 @@ class ModelInference(ABC):
                 return arguments["query"]
         return None
 
-    def generate_message(self, messages: List[Message], temperature: float = 0.001) -> Message:
+    def generate_message(self, messages: List[Message], temperature: float = 0) -> Message:
         prompt = get_prompt_from_messages(messages + [Message(role=Role.assistant)])
         generated_content = self.generate(prompt, temperature)
         return parse_generated_content(generated_content)
 
     def generate_answer(
-        self, question: str, retriever_func: Callable, temperature: float = 0.001, verbose=False
+        self, question: str, retriever_func: Callable, temperature: float = 0, verbose=False
     ) -> Optional[str]:
         messages = [Message(role=Role.user, content=question)]
         while True:

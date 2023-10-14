@@ -31,6 +31,10 @@ class FunctionCall(BaseModel):
     name: str = "retrieve"
     arguments: Optional[str] = None
 
+    @classmethod
+    def from_query(cls, query: str):
+        return cls(arguments=json.dumps({"query": query}))
+
 
 class Message(BaseModel):
     role: Role

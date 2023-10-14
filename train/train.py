@@ -42,6 +42,11 @@ print("local rank: ", LOCAL_RANK)
 
 
 class DataCollatorForMaskingLabels:
+    """This data collator is used for dynamic padding.
+    All the data points will be padded to the max length of the mini-batch instead of the whole dataset
+    This will reduce the training time considerably when your data points are not uniform in terms of length
+    """
+
     def __init__(self, tokenizer, padding_side="left") -> None:
         self.tokenizer = tokenizer
         self.padding_side = padding_side
@@ -161,7 +166,7 @@ def load_model(training_args, model_args, tokenizer):
         use_flash_attention_2=True,
         quantization_config=create_bnb_config(),
     )
-    print("model = ", model)
+    print_rank0("model = ", model)
     model.resize_token_embeddings(len(tokenizer))
     model.config.pad_token_id = tokenizer.pad_token_id
     model.gradient_checkpointing_enable()
@@ -171,7 +176,6 @@ def load_model(training_args, model_args, tokenizer):
     print_rank0("linear modules: ", modules)  # ["query_key_value"]
 
     model = get_peft_model(model, create_peft_config(modules))
-    print("print final time")
     print_trainable_parameters(model)
     return model
 
@@ -272,9 +276,9 @@ def train():
         return input_dic
 
     original_columns = list(ds["train"].features.keys())
-    print("original columns: ", original_columns)
+    print_rank0("original columns: ", original_columns)
     ds = ds.shuffle().map(generate_prompt, remove_columns=original_columns)
-    print("ds after removing columns: ", ds)
+    print_rank0("ds after removing columns: ", ds)
     # just print out to see if there are any errors
     print_some_examples(ds["train"], tokenizer)
     model = load_model(training_args, model_args, tokenizer)

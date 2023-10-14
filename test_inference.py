@@ -1,14 +1,7 @@
-import requests
-import shutil
+import utility
 
+items = utility.read_json("datasets/train.json")
+print("number of items: ", len(items))
 
-def download_file(url: str) -> str:
-    local_filename = url.split("/")[-1]
-    with requests.get(url, stream=True) as r:
-        with open(local_filename, "wb") as f:
-            shutil.copyfileobj(r.raw, f)  # type: ignore
-
-    return local_filename
-
-
-download_file("http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_distractor_v1.json")
+items = utility.read_json("datasets/validation.json")
+print("number of items: ", len(items))
