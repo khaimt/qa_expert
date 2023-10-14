@@ -59,12 +59,13 @@ Here are some notes:
 ## Training Data
 You can download the training data from Huggingface Hub: [khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0). 
 
-In total, our training dataset contains 27720 data points (train & validation) including single questions and multi-hop questions.
+In total, our training dataset contains 27720 data points (train & validation) including single questions and multi-hop questions. These data points are adopted and processed from available public sources or automatically generated using OpenAI Model.
 
 ### Single questions:
-  + [Squad](https://huggingface.co/datasets/squad_v2): We randomly select 4000 answerable questions + 2400 unanswerable questions. As the answers to these questions are spans, short, so we use OpenAI model to generate a complete answer given the question and context. The prompt we use is: [extra_files/answer_gen.txt](../extra_files/answer_gen.txt)
-  + [BoolQ](https://huggingface.co/datasets/boolq): We randomly select 1600 random questions. As the answers of these questions are yes/no, so we also use OpenAI model to generate complete answers. This type of question is more difficult and needs reasoning (like Chain-of-Thought), so we ask ChatGPT to first generate the reasoning and then the final answer. The prompt we used is: [extra_files/boolq_answer_gen.txt](../extra_files/boolq_answer_gen.txt)
-  + [Drop](https://huggingface.co/datasets/drop): We randomly select 1600 random questions. The answers of these questions are also short and without explanation, so we also use OpenAI model to generate the reasoning and the final answer. The prompt we used is: [extra_files/drop_answer_gen.txt](../extra_files/drop_answer_gen.txt)
+We use single questions from the following sources:
+  + [Squad](https://huggingface.co/datasets/squad_v2): We randomly select 4000 answerable questions + 2400 unanswerable questions. As the answers to these questions are spans, which are short, so we use OpenAI model to generate a complete answer given the question and context. The prompt we use is: [extra_files/answer_gen.txt](../extra_files/answer_gen.txt)
+  + [BoolQ](https://huggingface.co/datasets/boolq): We randomly select 1600 random questions. As the answers of these questions are yes/no, so we also use OpenAI model to generate complete answers. This type of question is more difficult and needs reasoning (like Chain-of-Thought), so we ask the model to first generate the reasoning and then the final answer. The prompt we used is: [extra_files/boolq_answer_gen.txt](../extra_files/boolq_answer_gen.txt)
+  + [Drop](https://huggingface.co/datasets/drop): We randomly select 1600 random questions. The answers of these questions are also short and without explanation, so we also use OpenAI model to generate the reasoning, arithmetic sequence (if needed) and the final answer. The prompt we used is: [extra_files/drop_answer_gen.txt](../extra_files/drop_answer_gen.txt)
 
 Here, the OpenAI models we used were: <i>gpt-3.5-turbo</i> for Squad and <i>gpt-3.5-turbo-instruct</i> for BoolQ and Drop. The temperature is always 0.
 
@@ -72,7 +73,7 @@ Here, the OpenAI models we used were: <i>gpt-3.5-turbo</i> for Squad and <i>gpt-
 For multi-hop questions we use [Musique](https://github.com/StonyBrookNLP/musique) and generated data
 
 #### [Musique](https://github.com/StonyBrookNLP/musique)
-This contains: 5847 answerable multi-hop questions and 2400 unanswerable multi-hop questions. The authors built these multi-hop questions based on single questions from various sources such as squad2, natural questions, zerore, ... But we found that some single questions are not well-formed (not a question and containing: <b>">>"</b>), such as "Stadio Ciro Vigorito >> occupant". So we removed all data points that had at least one unwell-formed single question.
+The authors built these multi-hop questions based on single questions from various sources such as squad2, natural questions, zerore, ... But we found that some single questions are not well-formed (not a question and containing: <b>">>"</b>), such as "Stadio Ciro Vigorito >> occupant". So we removed all data points that had at least one unwell-formed single question. Finally, we attained 5847 answerable multi-hop questions and we also randomly selected 2400 unanswerable multi-hop questions
 
 Each multi-hop question is decomposed into 2 or more single questions, and each single question contains short span answer. so Here is how we process the data:
 + First, for each single question, we generate the complete answer using OpenAI model with prompt=[extra_files/answer_gen.txt](../extra_files/answer_gen.txt) (this is like handling Squad). The openAI model here is: <i>gpt-3.5-turbo</i> with temperature=0
@@ -105,7 +106,7 @@ Other information:
 #### Format 
 Each data point is a Json:
 + *src*: source of data point: squad.json, drop.json, boolq.json, musicque.json or gen_qa.json
-+ *question*: the question either single question or multi-hop questions
++ *question*: the question, either single question or multi-hop questions
 + *inal_answer*: the final answer of the question --> model will generate this answer in the end
 + *answer*: span answer or None --> please ignore this, just an additional field of information
 + *sub_questions*: List of single questions to answer to answer the multi-hop question. If len(sub_questions) == 1 --> this is single question, not multi-hop question
