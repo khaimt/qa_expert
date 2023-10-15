@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Optional, Callable
+from typing import Any, List, Dict, Optional, Callable, Tuple
 from qa_expert.prompt_utils import get_prompt_from_messages
 from qa_expert.prompt_utils import Message, Role, FunctionCall
 import re
@@ -62,9 +62,24 @@ class ModelInference(ABC):
         return parse_generated_content(generated_content)
 
     def generate_answer(
-        self, question: str, retriever_func: Callable, temperature: float = 0, verbose=False
-    ) -> Optional[str]:
+        self, question: str, retriever_func: Callable[[str], str], temperature: float = 0, verbose=False
+    ) -> Tuple[Optional[str], List[Message]]:
+        """This function returns the answer of the question and also the intermediate result: queries, retrieved contexts, thought, answers
+
+        Args:
+            question (str): The question to answer
+            retriever_func (Callable): The retrieval function, input is: query (str) and output is the relevant context (str)
+            temperature (float, optional): Temperature for generation in LLM. Defaults to 0.
+            verbose (bool, optional): Defaults to False.
+
+        Returns:
+            Tuple[Optional[str], List[Message]]:
+                + the answer(str) to the question and
+                + list of messages: containing intermediate steps: query, retrieved context, ...
+        """
         messages = [Message(role=Role.user, content=question)]
+        if verbose:
+            print(f"User: {question}")
         while True:
             mess = self.generate_message(messages, temperature)
             messages.append(mess)
@@ -72,7 +87,6 @@ class ModelInference(ABC):
                 arguments = json.loads(mess.function_call.arguments)
                 query = arguments["query"]
                 if verbose:
-                    print("-----------------")
                     if mess.content is not None:
                         print(f"+ Thought: {mess.content}")
                     print(f"+ Retrieve information: query={query}")
@@ -83,4 +97,4 @@ class ModelInference(ABC):
             else:
                 if verbose:
                     print(f"Reponse: {mess.content}")
-                return mess.content
+                return mess.content, messages

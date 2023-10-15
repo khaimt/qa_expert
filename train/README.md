@@ -1,5 +1,5 @@
 # Fine-tuning
-We chose to use Qlora fine-tuning to reduce the memory usage. Our model ([khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0)) was trained on <b>1 RTX A6000</b> from [vast.ai](vast.ai). It took around <b>12 hours</b> for 2 epoch on our training data.
+We chose to use Qlora fine-tuning to reduce the memory usage. Our model ([khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0)) was trained on <b>1 RTX A6000</b> from [vast.ai]([vast.ai](https://vast.ai/)). It took around <b>12 hours</b> for 2 epochs on our training data.
 
 ## Content
 - [Fine-tuning](#fine-tuning)

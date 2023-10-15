@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import os
 import sys
+from qa_expert.prompt_utils import Message
 
 
 def read_text(path):
@@ -43,11 +44,8 @@ def save_jsonl(data, path):
 
 
 def beautify_json(path):
-    with open(path, "r") as f:
-        data = json.loads(f.read())
-    with open(path, "w") as f:
-        text = json.dumps(data, ensure_ascii=False, indent=4)
-        f.write(text)
+    data = read_json(path)
+    save_json(data, path)
 
 
 def main():
