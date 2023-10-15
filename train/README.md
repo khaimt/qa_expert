@@ -7,11 +7,12 @@ We chose to use Qlora fine-tuning to reduce the memory usage. Our model ([khaima
   - [Installation](#installation)
   - [Training script](#training-script)
   - [Training Data](#training-data)
+    - [Format](#format)
     - [Single questions:](#single-questions)
     - [Multi-hop questions](#multi-hop-questions)
       - [Musique](#musique)
       - [Generate training data](#generate-training-data)
-      - [Format](#format)
+      - [Script to generate Multi-hop training data](#script-to-generate-multi-hop-training-data)
 
 ## Installation
 You first need to install requirements:
@@ -61,6 +62,19 @@ You can download the training data from Huggingface Hub: [khaimaitien/qa-expert-
 
 In total, our training dataset contains 27720 data points (train & validation) including single questions and multi-hop questions. These data points are adopted and processed from available public sources or automatically generated using OpenAI Model.
 
+### Format 
+Each data point is a Json:
++ *src*: source of data point: squad.json, drop.json, boolq.json, musicque.json or gen_qa.json
++ *question*: the question, either single question or multi-hop questions
++ *inal_answer*: the final answer of the question --> model will generate this answer in the end
++ *answer*: span answer or None --> please ignore this, just an additional field of information
++ *sub_questions*: List of single questions to answer to answer the multi-hop question. If len(sub_questions) == 1 --> this is *single question*, *not multi-hop question*
+    + *question*: the single question to ask
+    + *answer*: the span answer of None or missing --> please ignore this, just an additional field of information
+    + *long_answer*: the complete answer of this single question
+    + *paragraph*: the context of the single question (this is considered as the retrieved context of the single question)
+    + *unanswerable*: = True if this question is unanswerable --> you can ignore this because long_answer, note this field might be missing, default value is False.
+
 ### Single questions:
 We use single questions from the following sources:
   + [Squad](https://huggingface.co/datasets/squad_v2): We randomly select 4000 answerable questions + 2400 unanswerable questions. As the answers to these questions are spans, which are short, so we use OpenAI model to generate a complete answer given the question and context. The prompt we use is: [extra_files/answer_gen.txt](../extra_files/answer_gen.txt)
@@ -94,24 +108,31 @@ We used openAI model to generate multi-hop questions. The flow is:
 + Step 11: Generate the thought for combining answer 1 and answer 2 to answer the <b>multi-hop question</b>
 + Step 12: Generate final answer of <b>multi-hop question</b>
 
-This flow is implemented using the prompt: [extra_files/comparison_gen.txt](../extra_files/comparison_gen.txt), results of all steps will be generated at 1 generation from openAI model. The model we used is: <i>gpt-3.5-turbo-instruct</i>. Note that the purpose here is to generate training data, so we need the diversity, so I set temperature=1 instead of 0. 
+This flow is implemented using the prompt: [extra_files/comparison_gen.txt](../extra_files/comparison_gen.txt), results of all steps will be generated at 1 generation from openAI model. The model we used is: <i>gpt-3.5-turbo-instruct</i>. Note that the purpose here is to generate training data, so we need the diversity, therefore we set temperature=1 instead of 0. 
 
 Other information:
 + The purpose of choosing a random category is to diversify the training data 
 + Most of the categories from the list are from: [Sekine’s Extended Named Entities](https://nlp.cs.nyu.edu/ene/version7_1_0Beng.html)
 + We only kept the data points that totally followed the format in the prompt
 + We removed data points that 2 entries not in the generated multi-hop question.
-+ We realized that because the temperature=1 so at the step 9, 10, 11, 12 the results were vulerable to hallucination, so we didn't use this result but re-generated the result using prompts: [extra_files/answer_gen.txt](../extra_files/answer_gen.txt) and [extra_files/final_answer_gen.txt](../extra_files/final_answer_gen.txt) with temperature=0 the same way as described in handling [Musique](https://github.com/StonyBrookNLP/musique)
++ We realized that because the temperature=1 so at the step 9, 10, 11, 12 the results were vulerable to hallucination, so we didn't use this result but re-generated the answers using prompts: [extra_files/answer_gen.txt](../extra_files/answer_gen.txt) and [extra_files/final_answer_gen.txt](../extra_files/final_answer_gen.txt) with temperature=0 the same way as described in handling [Musique](https://github.com/StonyBrookNLP/musique)
 
-#### Format 
-Each data point is a Json:
-+ *src*: source of data point: squad.json, drop.json, boolq.json, musicque.json or gen_qa.json
-+ *question*: the question, either single question or multi-hop questions
-+ *inal_answer*: the final answer of the question --> model will generate this answer in the end
-+ *answer*: span answer or None --> please ignore this, just an additional field of information
-+ *sub_questions*: List of single questions to answer to answer the multi-hop question. If len(sub_questions) == 1 --> this is single question, not multi-hop question
-    + *question*: the single question to ask
-    + *answer*: the span answer of None or missing --> please ignore this, just an additional field of information
-    + *long_answer*: the complete answer of this single question
-    + *paragraph*: the context of the single question (this is considered as the retrieved context of the single question)
-    + *unanswerable*: = True if this question is unanswerable --> you can ignore this because long_answer, note this field might be missing, default value is False.
+#### Script to generate Multi-hop training data
+To generate the multi-hop training data:
+```bash
+export OPENAI_API_KEY=xxxx
+python gen_multi_hop_qa.py --num-items-per-category 100
+```
+During executing this command, we can see the progress being printed out, and also see the estimated cost and time. 
+
+At the end, we will end up having 3 files:
++ raw_multi_hop_qa.json: the generated result from 12 steps
++ filtered.json: the result after removing low-quality data points 
++ final.json: the final json file following the format of training data
+
+Paramters:
++ --num-items-per-category: Number of items for each category. Default=100
++ --output-folder: where to save the result. Default="gen_qa"
++ --re-generate-answer: Whether or not we will generate the answers to single questions and multi-hop question, as explained above, because at first we use temperature=1 to generate so generated result is vulerable to hallucination so we should re-generate using temperature=0. Default=*False*
++ --category-path: the file containing categories, each category is separated by: "," and can be in multiple lines. Default=[extra_files/categories.txt](extra_files/categories.txt)
++ --continue-gen: If the output_folder already contains the result, whether we will continue to generate from the existing result or generate from scratch.

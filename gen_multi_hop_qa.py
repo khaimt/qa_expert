@@ -8,6 +8,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Union, Dict, List, Tuple, Callable
 import json
+import typer
 
 
 def get_response_from_chat_model(input_dic: Dict) -> Dict[str, Any]:
@@ -95,10 +96,11 @@ def generate_data_point_from_category(category, prompt):
     record = {
         "question": dic["Question for 2 entries"],
         "sub_questions": [
-            {"question": dic["Question 1"], "answer": dic["Question 1"], "paragraph": dic["Supporting paragraph 1"]},
-            {"question": dic["Question 2"], "answer": dic["Question 2"], "paragraph": dic["Supporting paragraph 2"]},
+            {"question": dic["Question 1"], "long_answer": dic["Answer 1"], "paragraph": dic["Supporting paragraph 1"]},
+            {"question": dic["Question 2"], "long_answer": dic["Answer 2"], "paragraph": dic["Supporting paragraph 2"]},
         ],
         "answer": f"{thought}\nFinal answer:{final_answer}",
+        "final_answer": f"{thought}\nFinal answer:{final_answer}",
         "entries": dic["Entries"],
         "category": category,
     }
@@ -143,8 +145,8 @@ class GenTask(ABC):
             avg_tokens = acc_tokens / handled_count
             remaining_count = total_count - handled_count
 
-            estimated_total_money = avg_tokens * total_count * 0.0015 / 1000
-            current_money = acc_tokens * 0.0015 / 1000
+            estimated_total_money = avg_tokens * total_count * 0.002 / 1000
+            current_money = acc_tokens * 0.002 / 1000
 
             print(
                 (
@@ -233,11 +235,11 @@ class GenComparisonQA(GenTask):
             self.current_category_count[item["category"]] += 1
 
         # compute the remaining number for each category
-        self.category_count = {}  # mapping from category --> number of items
+        self.category_count = {}  # mapping from category --> number of remaining items
         for category in self.current_category_count:
             self.category_count[category] = self.num_items_per_category - self.current_category_count[category]
-            if self.category_count[category] < 0:  # no need to call
-                self.category_count[category] = 0
+            if self.category_count[category] <= 0:  # no need to call --> delete
+                del self.category_count[category]
 
     def count_number_of_remaining_items(self) -> int:
         return self.num_items_per_category * len(self.categories) - len(self.result)
@@ -277,18 +279,109 @@ def fill_in_sub_answers_long_answers(input_path, save_path):
     task.run()
 
 
-def check():
-    path = "datasets/raw_data/gen_data/good.json"
-    items = utility.read_json(path)
-    print("number of items: ", len(items))
-    path2 = "datasets/processed_data/gen.json"
-    print("number of gen: ", len(utility.read_json(path2)))
+def post_process_entry_text(entry_text: str) -> str:
+    prefixs = ["generate 2 random entries of Event. The format:", "Generate 2 random entries of Event. The format:"]
+    for prefix in prefixs:
+        if entry_text.startswith(prefix):
+            entry_text = entry_text[len(prefix) :].strip()
+    return entry_text
+
+
+def remove_low_quality_data(data_path: str, save_path: str, keep_answer: bool = False):
+    items = utility.read_json(data_path)
+    invalid_entry_count = 0
+    failed_items = []
+    good_items = []
+    for item in items:
+        if item is None:
+            continue
+        entry_text = post_process_entry_text(item["entries"])
+        entries = entry_text.split(";")
+        if len(entries) != 2:
+            invalid_entry_count += 1
+        else:
+            entries = [entry.strip() for entry in entries]
+            question = item["question"]
+            check1 = entries[0].lower() in question.lower()
+            check2 = entries[1].lower() in question.lower()
+            check3 = entries[0].lower() in item["sub_questions"][0]["question"].lower()
+            check4 = entries[1].lower() in item["sub_questions"][1]["question"].lower()
+            if check1 and check2 and check3 and check4:
+                good_items.append(item)
+            else:
+                failed_items.append(item)
+    print("total number of items: ", len(items))
+    print("failed at entries: ", invalid_entry_count)
+    print("number of items failed at check: ", len(failed_items))
+    print("number of good_items: ", len(good_items))
+    if keep_answer:
+        utility.save_json(good_items, save_path)
+    else:
+        result = []
+        for item in good_items:
+            new_item = {"question": item["question"], "answer": None}
+            subs = []
+            for sub in item["sub_questions"]:
+                subs.append({"question": sub["question"], "paragraph": sub["paragraph"]})
+            new_item["sub_questions"] = subs
+            result.append(new_item)
+        utility.save_json(result, save_path)
+
+
+def main(
+    num_items_per_category: int = typer.Option(default=100),
+    output_folder: str = typer.Option(default="gen_qa"),
+    re_generate_answer: bool = typer.Option(False, "--re-generate-answer"),
+    category_path: str = typer.Option(default="extra_files/categories.txt"),
+    continue_gen: bool = typer.Option(True, "--no-continue"),
+):
+    """this function is used to generate multi-hop Q&A
+
+    Args:
+        num_items_per_category (int, optional): number of generated items for each category. Defaults to typer.Option(default=100).
+        output_folder (str, optional): where to save the result. Defaults to typer.Option(default="gen_qa").
+        re_generate_answer (bool, optional): If we re-generate the answers to single questions and final answer to the multi-hop question or not.
+            if re-generate, we will use the prompt template for generating the answer + temperature=0
+        category_path (str, optional): The path to list of categories. Defaults to typer.Option(default="extra_files/categories.txt").
+        continue_gen (bool, optional): if we continue to generate from current result or not. Defaults to typer.Option(True, "--no-continue").
+    """
+    if not os.path.exists(output_folder):
+        utility.create_folder(output_folder)
+    kwargs = {
+        "category_path": category_path,
+        "prompt": "extra_files/comparison_gen.txt",
+        "num_items_per_category": num_items_per_category,
+    }
+    multi_hop_qa_path = os.path.join(output_folder, "raw_multi_hop_qa.json")
+    if os.path.exists(multi_hop_qa_path) and not continue_gen:
+        os.remove(multi_hop_qa_path)
+    print("Start to generate multi-hop QA now")
+    task = GenComparisonQA(multi_hop_qa_path, **kwargs)
+    task.run()
+
+    high_quality_data_path = os.path.join(output_folder, "filtered.json")
+    remove_low_quality_data(multi_hop_qa_path, high_quality_data_path, keep_answer=not re_generate_answer)
+    final_path = os.path.join(output_folder, "final.json")
+    if re_generate_answer:
+        print("Start to re-generate answers for single questions and final multi-hop questions")
+        if os.path.exists(final_path) and not continue_gen:
+            os.remove(final_path)
+
+        kwargs = {
+            "input_path": high_quality_data_path,
+            "subquestion_prompt": "extra_files/answer_gen.txt",
+            "final_prompt": "extra_files/final_answer_gen.txt",
+        }
+        answer_task = GenAnswer(final_path, **kwargs)
+        answer_task.run()
+    else:
+        items = utility.read_json(high_quality_data_path)
+        for item in items:
+            item["answer"] = None
+            del item["entries"]
+            del item["category"]
+        utility.save_json(items, final_path)
 
 
 if __name__ == "__main__":
-    # check()
-    # generate_comparison_data_points("datasets/raw_data/gen_data/comparison.json")
-    # generate_comparison_data_points("datasets/raw_data/gen_data/comparison_add_new2.json", 15)
-    fill_in_sub_answers_long_answers(
-        "datasets/raw_data/gen_data/small.json", "datasets/raw_data/gen_data/small_test.json"
-    )
+    typer.run(main)

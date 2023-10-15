@@ -110,6 +110,7 @@ def evaluate_hotpot_qa(
     records = []
     t1 = datetime.datetime.now()
     acc_time = 0.0
+    avg_f1_list, avg_acc_list = [], []
     for index, example in enumerate(examples):
         question = example["question"]
         answer = example["answer"]
@@ -140,9 +141,14 @@ def evaluate_hotpot_qa(
         }
         records.append(record)
         f1 = compute_f1(pred_answer, answer)
+        avg_f1_list.append(f1)
         containing_acc = compute_containing_acc(pred_answer, answer)
+        avg_acc_list.append(containing_acc)
+
+        avg_f1 = sum(avg_f1_list) / len(avg_f1_list)
+        avg_acc = sum(avg_acc_list) / len(avg_acc_list)
         print(
-            f"{index + 1} / {len(examples)}, avg_time: {avg_time}, remaining time: {remaining_time}, F1={f1}, containing_acc: {containing_acc}"
+            f"{index + 1} / {len(examples)}, avg_time: {avg_time}, remaining time: {remaining_time}, F1={avg_f1}, containing_acc: {avg_acc}"
         )
         if len(save_path) > 0:
             utility.save_json(records, save_path)
