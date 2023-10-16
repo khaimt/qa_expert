@@ -6,7 +6,6 @@ from datasets import load_dataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-os.environ["WANDB_PROJECT"] = "qa_expert"
 os.environ["WANDB_LOG_MODEL"] = "all"
 
 from peft import (
@@ -97,6 +96,7 @@ class PaddingArguments:
 class DataArguments:
     train_path: str = field(default="", metadata={"help": "Path to the training data."})
     validation_path: str = field(default="", metadata={"help": "Path to the evaluation data"})
+    hf_data_path: str = field(default="khaimaitien/qa-expert-multi-hop-qa-V1.0", metadata={"help": "dataset from HF hub"})
 
 
 @dataclass
@@ -146,13 +146,20 @@ def find_all_linear_names(model):
     return list(lora_module_names)
 
 
+def get_device_map() -> Optional[Dict]:
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
+    ddp = world_size != 1
+    device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)} if ddp else None
+    return device_map
+
+
 def load_model(training_args, model_args, tokenizer):
     # Set RoPE scaling factor
     config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
     if model_args.model_type == "llama":
         model_max_length = model_args.model_max_length
         orig_ctx_len = getattr(config, "max_position_embeddings", None)
-        print(f"rope scaling for llamam original context length: {orig_ctx_len}, extended to: {model_max_length}")
+        print_rank0(f"rope scaling for llamam original context length: {orig_ctx_len}, extended to: {model_max_length}")
         if orig_ctx_len and model_max_length > orig_ctx_len:
             scaling_factor = float(math.ceil(model_max_length / orig_ctx_len))
             config.rope_scaling = {"type": "linear", "factor": scaling_factor}
@@ -161,7 +168,7 @@ def load_model(training_args, model_args, tokenizer):
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         config=config,
-        device_map="auto",
+        device_map=get_device_map(),
         trust_remote_code=True,
         use_flash_attention_2=True,
         quantization_config=create_bnb_config(),
@@ -222,6 +229,7 @@ def print_some_examples(ds, tokenizer):
         if count == 0:
             print_rank0("keys in batch: ", batch.keys())
         print_rank0("--------------****Example data point****---------------")
+        print("device: ", batch["input_ids"].device)
         print_rank0("shape of input_ids: ", batch["input_ids"].shape)  # B x L
         print_rank0("shape of labels: ", batch["labels"].shape)
         print_rank0("shape of attention_mask: ", batch["attention_mask"].shape)
@@ -264,7 +272,10 @@ def train():
     print("tokenizer: ", tokenizer)
 
     # read data
-    ds = load_dataset("json", data_files={"train": data_args.train_path, "validation": data_args.validation_path})
+    if data_args.train_path:
+        ds = load_dataset("json", data_files={"train": data_args.train_path, "validation": data_args.validation_path})
+    elif data_args.hf_data_path:
+        ds = load_dataset(data_args.hf_data_path)
     print(ds)
     print_rank0(f"padding_args: padding={padding_args.padding}, max_length: {padding_args.max_sequence_length}")
 

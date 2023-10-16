@@ -22,7 +22,8 @@ pip install -r requirements.txt
 ```
 
 ## Training script
-Here is the training script we used to fine-tune our model on 1 RTX A6000
+### Single GPU
+Here is the training script we used to fine-tune our model on 1 GPU: RTX A6000
 ```
 python train.py \
     --model_name_or_path pretrained/Mistral-7B-v0.1  \
@@ -49,13 +50,52 @@ python train.py \
     --report_to wandb
 ```
 
+You can use: --hf_data_path instead of --train_path and --validation_path if you want to load data from HuggingFace hub, for example:
+```
+--hf_data_path khaimaitien/qa-expert-multi-hop-qa-V1.0
+```
+
 Here are some notes:
 + Currently we support model_type=mistral or llama
 + In finetuning, we set max_sequence_length=1350 instead of a bigger number (2048 or even 4096) because we found that in our training data, there were only 100 data points longer than this length and bigger values of max_sequence_length would cost more memory. We also implemented a script ([find_max_token_length.py](find_max_token_length.py)) for outputing the statistis of sequence length distribution on the training data, we can base on the statistics to decide which max_sequence_length to use. Note that because we wanted to optimize the training time so we did this, if you don't need to care much about the training cost, you can just set a big number
 + When the training is completed, we need to merge the lora weights with the original weights. You can use this script: [merge_weight.py](merge_weight.py) to merge the weights
 + You can also upload your model to HuggingFace Hub using the script: [upload_model_to_hf.py](upload_model_to_hf.py)
 + Use padding=<b>longest</b> instead of <b>max_length</b> will reduce the training time considerably as we applied dynamic padding (you can take a look at: DataCollatorForMaskingLabels in train.py)
-+ Currently, the training script only works on a single GPU, we will fix the training script so that it will be able to train on multiple GPU in the future
+
+### Multiple GPU
+To train on Multiple GPU, I suggest using deepspeed zero2 (note that currently, zero3 is not supported for Qlora).
+You need to install deepspeed:
+
+```
+pip install deepspeed=0.11.1
+```
+Another note is: FSDP **doesn't work** for Lora because it requires all the parameters to be uniformly trainable or freezed. So that's why we should use Deepspeed
+
+Here is an example:
+```
+deepspeed train/train.py \
+    --model_name_or_path /workspace/khai/functionary/functionary/Llama-2-13b-hf  \
+    --model_type llama \
+    --hf_data_path khaimaitien/qa-expert-multi-hop-qa-V1.0 \
+    --num_train_epochs 2 \
+    --bf16 True \
+    --per_device_train_batch_size 25 \
+    --gradient_accumulation_steps 4 \
+    --per_device_eval_batch_size 25 \
+    --evaluation_strategy "steps" \
+    --eval_steps 40 \
+    --save_strategy "steps" \
+    --save_steps 63 \
+    --save_total_limit 2 \
+    --learning_rate 4e-5 \
+    --logging_steps 10 \
+    --model_max_length 8192 \
+    --gradient_checkpointing True \
+    --output_dir models/llama-13b-qa-expert \
+    --padding longest \
+    --max_sequence_length 1350 \
+    --deepspeed train/ds_config/zero2.json
+```
 
 ## Training Data
 You can download the training data from Huggingface Hub: [khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0). 
