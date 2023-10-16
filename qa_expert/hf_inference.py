@@ -22,6 +22,8 @@ class HFInference(ModelInference):
         gen_config = GenerationConfig(
             **{"max_new_tokens": 512, "do_sample": True, "temperature": temperature, "eos_token_id": self.eos_token_id}
         )
+        if temperature == 0:
+            gen_config["temperature"] = 0.0001
         output = self.model.generate(input_ids, gen_config)
 
         output_ids = output[0].tolist()

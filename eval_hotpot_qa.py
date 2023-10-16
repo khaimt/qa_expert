@@ -48,7 +48,7 @@ def normalize_text(s: str) -> str:
     return white_space_fix(remove_articles(remove_punc(lower(s))))
 
 
-def compute_f1(prediction: str, truth: str) -> float:
+def compute_recall(prediction: str, truth: str) -> float:
     """Compute f1-score based on the individual words in prediction and truth
 
     Args:
@@ -71,10 +71,10 @@ def compute_f1(prediction: str, truth: str) -> float:
     if len(common_tokens) == 0:
         return 0
 
-    prec = len(common_tokens) / len(pred_tokens)
+    # prec = len(common_tokens) / len(pred_tokens)
     rec = len(common_tokens) / len(truth_tokens)
 
-    return 2 * (prec * rec) / (prec + rec)
+    return rec
 
 
 def compute_containing_acc(prediction: str, truth: str) -> float:
@@ -110,14 +110,14 @@ def evaluate_hotpot_qa(
     records = []
     t1 = datetime.datetime.now()
     acc_time = 0.0
-    avg_f1_list, avg_acc_list = [], []
+    avg_recall_list, avg_acc_list = [], []
     for index, example in enumerate(examples):
         question = example["question"]
         answer = example["answer"]
         context = example["context"]
         paragraphs = [create_paragraph(p[0], p[1]) for p in context]
         para_vectors = retriever.encode(paragraphs, normalize_embeddings=True)
-        num_paragraphs = 2
+        num_paragraphs = 3
 
         def retrieve(query: str):
             query_vec = retriever.encode([query], normalize_embeddings=True)
@@ -127,7 +127,7 @@ def evaluate_hotpot_qa(
             contexts = [paragraphs[index] for index in s_indices[:num_paragraphs]]
             return " ".join(contexts)
 
-        pred_answer, messages = model_inference.generate_answer(question, retrieve, verbose=False)
+        pred_answer, messages = model_inference.generate_answer(question, retrieve, verbose=False, temperature=0.001)
         pred_answer = str(pred_answer)
         t2 = datetime.datetime.now()
         acc_time += (t2 - t1).total_seconds()
@@ -140,15 +140,16 @@ def evaluate_hotpot_qa(
             "pred_answer": pred_answer,
         }
         records.append(record)
-        f1 = compute_f1(pred_answer, answer)
-        avg_f1_list.append(f1)
+        recall = compute_recall(pred_answer, answer)
+        avg_recall_list.append(recall)
         containing_acc = compute_containing_acc(pred_answer, answer)
+        record["containing"] = containing_acc
         avg_acc_list.append(containing_acc)
 
-        avg_f1 = sum(avg_f1_list) / len(avg_f1_list)
+        avg_recall = sum(avg_recall_list) / len(avg_recall_list)
         avg_acc = sum(avg_acc_list) / len(avg_acc_list)
         print(
-            f"{index + 1} / {len(examples)}, avg_time: {avg_time}, remaining time: {remaining_time}, F1={avg_f1}, containing_acc: {avg_acc}"
+            f"{index + 1} / {len(examples)}, avg_time: {avg_time}, remaining time: {remaining_time}, Recall={avg_recall}, containing_acc: {avg_acc}"
         )
         if len(save_path) > 0:
             utility.save_json(records, save_path)
