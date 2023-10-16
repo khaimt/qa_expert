@@ -74,7 +74,7 @@ Another note is: FSDP **doesn't work** for Lora because it requires all the para
 Here is an example:
 ```
 deepspeed train/train.py \
-    --model_name_or_path /workspace/khai/functionary/functionary/Llama-2-13b-hf  \
+    --model_name_or_path PRETRAINED_PATH  \
     --model_type llama \
     --hf_data_path khaimaitien/qa-expert-multi-hop-qa-V1.0 \
     --num_train_epochs 2 \
@@ -91,7 +91,7 @@ deepspeed train/train.py \
     --logging_steps 10 \
     --model_max_length 8192 \
     --gradient_checkpointing True \
-    --output_dir models/llama-13b-qa-expert \
+    --output_dir OUTPUT_DIR \
     --padding longest \
     --max_sequence_length 1350 \
     --deepspeed train/ds_config/zero2.json
