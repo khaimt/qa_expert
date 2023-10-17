@@ -45,15 +45,17 @@ class SingleQAInput(BaseModel):
 app = FastAPI()
 MODEL_PATH = os.environ.get("MODEL_PATH", "khaimaitien/qa-expert-7B-V1.0")
 INFERENCE_TYPE = os.environ.get("INFERENCE_TYPE", "hf").lower()
+TOKENIZER_PATH = os.environ.get("TOKENIZER", "")  # GGUF needs this 
+print(f"start model, inference_type: {INFERENCE_TYPE}, model_path: {MODEL_PATH}, tokenizer_path: {TOKENIZER_PATH}")
 assert INFERENCE_TYPE in [item.value for item in InferenceType]
-model_inference = get_inference_model(MODEL_PATH, InferenceType(INFERENCE_TYPE))
+model_inference = get_inference_model(InferenceType(INFERENCE_TYPE), MODEL_PATH, TOKENIZER_PATH)
 
 
 @app.post("/v1/chat/completions", response_model=ResponseOpenAI)
 async def chat_endpoint(chat_input: ChatInput):
     request_id = str(uuid.uuid4())
     message = model_inference.generate_message(chat_input.messages)
-    return ResponseOpenAI(id=request_id, choices=Choice(message=message))
+    return ResponseOpenAI(id=request_id, choices=[Choice(message=message)])
 
 
 @app.post("/v1/prompt/completions")

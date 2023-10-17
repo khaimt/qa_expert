@@ -1,12 +1,14 @@
 from vllm import LLM, SamplingParams
 from qa_expert.prompt_utils import SpecialToken
 from qa_expert.base_inference import ModelInference
+from transformers import LlamaTokenizer
 
 
 class VllmInference(ModelInference):
     def __init__(self, model_path_or_service: str, *args, **kwargs) -> None:
         self.llm = LLM(model=model_path_or_service)
-        tokenizer = self.llm.get_tokenizer()
+        tokenizer = LlamaTokenizer.from_pretrained(model_path_or_service, legacy=True)
+        self.llm.set_tokenizer(tokenizer)
         self.eos_token_id = tokenizer.encode(SpecialToken.eot)[-1]
 
     def generate(self, prompt: str, temperature: float = 0.001) -> str:

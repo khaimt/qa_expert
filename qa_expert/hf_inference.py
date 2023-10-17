@@ -19,11 +19,10 @@ class HFInference(ModelInference):
 
     def generate(self, prompt: str, temperature: float = 0.001) -> str:
         input_ids = self.tokenizer(prompt, return_tensors="pt")["input_ids"].to(self.model.device)
+        temperature = temperature if temperature > 0 else 0.001
         gen_config = GenerationConfig(
             **{"max_new_tokens": 512, "do_sample": True, "temperature": temperature, "eos_token_id": self.eos_token_id}
         )
-        if temperature == 0:
-            gen_config["temperature"] = 0.0001
         output = self.model.generate(input_ids, gen_config)
 
         output_ids = output[0].tolist()

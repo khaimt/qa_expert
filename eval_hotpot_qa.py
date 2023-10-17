@@ -89,6 +89,7 @@ def evaluate_hotpot_qa(
     hotpot_qa_dev_path: str = typer.Option(default=""),
     inference_type: str = typer.Option(default="hf"),
     save_path: str = typer.Option(default=""),
+    tokenizer_path: str = typer.Option(default=""),
 ):
     if len(hotpot_qa_dev_path) == 0:
         hotpot_qa_dev_path = "hotpot_dev_distractor_v1.json"
@@ -96,14 +97,14 @@ def evaluate_hotpot_qa(
             print("hotpot_dev_distractor_v1.json doesn't exist, start downloading now !")
             hotpot_qa_dev_path = download_file("http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_distractor_v1.json")
             print("finish downloading hotpot_dev_distractor_v1.json ")
-    model_inference: ModelInference = get_inference_model(model_path, InferenceType(inference_type))
+    model_inference: ModelInference = get_inference_model(InferenceType(inference_type), model_path, tokenizer_path)
     retriever = SentenceTransformer(retriever_path)
     examples = utility.read_json(hotpot_qa_dev_path)
     print("number of items: ", len(examples))
     records = []
     t1 = datetime.datetime.now()
     acc_time = 0.0
-    avg_recall_list, avg_acc_list = [], []
+    avg_recall_list, avg_acc_list, is_multi_hop_acc_list = [], [], []
     for index, example in enumerate(examples):
         question = example["question"]
         answer = example["answer"]
@@ -119,30 +120,39 @@ def evaluate_hotpot_qa(
             s_indices.reverse()
             contexts = [paragraphs[index] for index in s_indices[:num_paragraphs]]
             return " ".join(contexts)
-
-        pred_answer, messages = model_inference.generate_answer(question, retrieve, verbose=True, temperature=0.001)
+        try:
+            pred_answer, messages = model_inference.generate_answer(question, retrieve, verbose=False, temperature=0.001)
+        except:
+            pred_answer, messages = "",[]
+            print("exception at this question: ", question)
         pred_answer = str(pred_answer)
         t2 = datetime.datetime.now()
-        acc_time += (t2 - t1).total_seconds()
+        acc_time = (t2 - t1).total_seconds()
         avg_time = acc_time / (index + 1)
         remaining_time = (len(examples) - index - 1) * avg_time
         record = {
             "question": question,
             "span_answer": answer,
-            "messages": [mess.model_dump(exclude_none=True) for mess in messages],
+            "messages": [mess.json(exclude_none=True) for mess in messages],
             "pred_answer": pred_answer,
         }
+        if len(messages) > 4:
+            is_multi_hop_acc_list.append(1)
+        else:
+            is_multi_hop_acc_list.append(0)
         records.append(record)
         recall = compute_recall(pred_answer, answer)
         avg_recall_list.append(recall)
+        
         containing_acc = compute_containing_acc(pred_answer, answer)
         record["containing"] = containing_acc
         avg_acc_list.append(containing_acc)
-
+        
+        avg_is_multi_hop = sum(is_multi_hop_acc_list) / len(is_multi_hop_acc_list)
         avg_recall = sum(avg_recall_list) / len(avg_recall_list)
         avg_acc = sum(avg_acc_list) / len(avg_acc_list)
         print(
-            f"{index + 1} / {len(examples)}, avg_time: {avg_time}, remaining time: {remaining_time}, Recall={avg_recall}, containing_acc: {avg_acc}"
+            f"{index + 1} / {len(examples)}, avg_time: {avg_time}, remaining time: {remaining_time}, Recall={avg_recall}, containing_acc: {avg_acc}, avg_is_multi_hop: {avg_is_multi_hop}"
         )
         if len(save_path) > 0:
             utility.save_json(records, save_path)

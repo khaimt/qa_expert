@@ -9,7 +9,7 @@ class InferenceType(str, Enum):
     llama_cpp = "llama_cpp"
 
 
-def get_inference_model(model_path_or_service: str, model_type: InferenceType, *args, **kwargs) -> ModelInference:
+def get_inference_model(model_type: InferenceType, model_path_or_service: str, *args, **kwargs) -> ModelInference:
     if model_type == InferenceType.hf:
         from qa_expert.hf_inference import HFInference
 
