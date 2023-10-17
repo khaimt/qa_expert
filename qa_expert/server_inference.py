@@ -8,7 +8,7 @@ from qa_expert.prompt_utils import Message
 
 
 class ServerInference(ModelInference):
-    def __init__(self, model_path_or_service: str, **kwargs) -> None:
+    def __init__(self, model_path_or_service: str, *args, **kwargs) -> None:
         self.api_base = model_path_or_service
         self.api_key = "qa_expert"
 

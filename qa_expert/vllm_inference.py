@@ -4,7 +4,7 @@ from qa_expert.base_inference import ModelInference
 
 
 class VllmInference(ModelInference):
-    def __init__(self, model_path_or_service: str, **kwargs) -> None:
+    def __init__(self, model_path_or_service: str, *args, **kwargs) -> None:
         self.llm = LLM(model=model_path_or_service)
         tokenizer = self.llm.get_tokenizer()
         self.eos_token_id = tokenizer.encode(SpecialToken.eot)[-1]

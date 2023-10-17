@@ -5,7 +5,7 @@ import torch
 
 
 class HFInference(ModelInference):
-    def __init__(self, model_path_or_service: str, **kwargs) -> None:
+    def __init__(self, model_path_or_service: str, *args, **kwargs) -> None:
         self.tokenizer = LlamaTokenizer.from_pretrained(model_path_or_service, legacy=True)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path_or_service,

@@ -5,8 +5,7 @@ import typer
 from sentence_transformers import SentenceTransformer, util
 from qa_expert.prompt_utils import SpecialToken, get_prompt_from_messages, Message, Role
 import numpy as np
-from qa_expert.hf_inference import HFInference
-from qa_expert.base_inference import ModelInference
+from qa_expert import get_inference_model, ModelInference, InferenceType
 import requests
 import shutil
 import os
@@ -97,13 +96,7 @@ def evaluate_hotpot_qa(
             print("hotpot_dev_distractor_v1.json doesn't exist, start downloading now !")
             hotpot_qa_dev_path = download_file("http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_distractor_v1.json")
             print("finish downloading hotpot_dev_distractor_v1.json ")
-    assert inference_type in ["hf", "vllm"]
-    if inference_type == "hf":
-        model_inference: ModelInference = HFInference(model_path)
-    else:
-        from qa_expert.vllm_inference import VllmInference
-
-        model_inference = VllmInference(model_path)
+    model_inference: ModelInference = get_inference_model(model_path, InferenceType(inference_type))
     retriever = SentenceTransformer(retriever_path)
     examples = utility.read_json(hotpot_qa_dev_path)
     print("number of items: ", len(examples))
@@ -127,7 +120,7 @@ def evaluate_hotpot_qa(
             contexts = [paragraphs[index] for index in s_indices[:num_paragraphs]]
             return " ".join(contexts)
 
-        pred_answer, messages = model_inference.generate_answer(question, retrieve, verbose=False, temperature=0.001)
+        pred_answer, messages = model_inference.generate_answer(question, retrieve, verbose=True, temperature=0.001)
         pred_answer = str(pred_answer)
         t2 = datetime.datetime.now()
         acc_time += (t2 - t1).total_seconds()

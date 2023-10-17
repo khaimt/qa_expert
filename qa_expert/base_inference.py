@@ -28,7 +28,7 @@ def parse_generated_content(generated_content: str) -> Message:
 
 
 class ModelInference(ABC):
-    def __init__(self, model_path_or_service: str, **kwargs) -> None:
+    def __init__(self, model_path_or_service: str, *args, **kwargs) -> None:
         raise NotImplementedError
 
     @abstractmethod

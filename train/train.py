@@ -96,7 +96,9 @@ class PaddingArguments:
 class DataArguments:
     train_path: str = field(default="", metadata={"help": "Path to the training data."})
     validation_path: str = field(default="", metadata={"help": "Path to the evaluation data"})
-    hf_data_path: str = field(default="khaimaitien/qa-expert-multi-hop-qa-V1.0", metadata={"help": "dataset from HF hub"})
+    hf_data_path: str = field(
+        default="khaimaitien/qa-expert-multi-hop-qa-V1.0", metadata={"help": "dataset from HF hub"}
+    )
 
 
 @dataclass
