@@ -6,6 +6,9 @@ We chose to use Qlora fine-tuning to reduce the memory usage. Our model ([khaima
   - [Content](#content)
   - [Installation](#installation)
   - [Training script](#training-script)
+    - [Single GPU](#single-gpu)
+    - [Multiple GPU](#multiple-gpu)
+  - [Evaluation](#evaluation)
   - [Training Data](#training-data)
     - [Format](#format)
     - [Single questions:](#single-questions)
@@ -96,6 +99,36 @@ deepspeed train/train.py \
     --max_sequence_length 1350 \
     --deepspeed train/ds_config/zero2.json
 ```
+
+## Evaluation
+We use [HotpotQA](https://hotpotqa.github.io/) as the evaluation dataset to compare 2 models: [khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) and [khaimaitien/qa-expert-llama2-13B-V1.0](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0). Actually, we randomly chose <b>500</b> examples from <b>Dev set (distractor)</b> and measure the metrics: 
++ Recall: compute the recall based on the individual words, the reason we use recall instead of F1 because the ground-truth answers are short and usually spans.
++ Accuracy of containing ground-truth: If the ground-truth answer (mostly short span) is exactly in the generated answer --> 1 else 0
+
+Here is the result:
+
+|Model|Recall|Accuracy of containing ground-truth|
+|---|---|---|
+|[khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0)|0.64429|0.558|
+|[khaimaitien/qa-expert-llama2-13B-V1.0](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0)|0.6093|0.532|
+
+We conclude that although the number of parameters is much smaller, <b>[khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) outperforms [khaimaitien/qa-expert-llama2-13B-V1.0](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0) considerably </b>
+
+You can run the evaluation script at the root directory of this repo:
+
+```shell
+python eval_hotpot_qa.py --model-path khaimaitien/qa-expert-7B-V1.0
+```
+Arguments:
+
++ **--model-path (str, optional)**: model to evaluate. Default="khaimaitien/qa-expert-7B-V1.0"
++ **--retriever-path (str, optional)**: The retriever model to use in evaluation. Default="intfloat/e5-base-v2"
++ **--hotpot-qa-dev-path (str, optional)**: hotpot_qa file to eval. Default="extra_data/hotpot_dev_distractor_v1_random_500.json".
++ **--inference-type (str, optional)**: type of inference, you can use Vllm to reduce the evaluation time . Default="hf"
++ **--save-path (str, optional)**: where to save the inference result, if empty, inference result is not saved. Default=""
++ **--tokenizer-path (str, optional)**: path to tokenizer, this is <b>only needed if inference_type=llama_cpp. Default=""</b>
+
+The output of running this script will be the metrics in progress
 
 ## Training Data
 You can download the training data from Huggingface Hub: [khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0). 

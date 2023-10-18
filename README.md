@@ -31,23 +31,75 @@ QA Expert will analyze the question and the retrieval result to decide whether a
 ## Usage
 ### Model Download
 
+Below are the finetuned models. Basically from evaluation we found that <b>the 7B model - [khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) is better than 13B model - [khaimaitien/qa-expert-llama2-13B-V1.0](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0)</b>, this might be due to the superiority of the base model [Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) over [Llama-2-13b-hf](https://huggingface.co/NousResearch/Llama-2-13b-hf)
+
+So you should use: [khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) for better performance, latency and memory.
+| Size | Hugging Face Repo | Base Model |
+| ---  | --- | --- |
+| 7B | [khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) | [mistralai/Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) |
+|13B| [khaimaitien/qa-expert-llama2-13B-V1.0](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0)|[NousResearch/Llama-2-13b-hf](https://huggingface.co/NousResearch/Llama-2-13b-hf)|
+
+You can also find GGUF versions:
+
 | Size | Hugging Face Repo |
 | ---  | --- |
-| 7B | [khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) | 
+| 7B | [khaimaitien/qa-expert-7B-V1.0-GGUF](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF) | 
+|13B| [khaimaitien/qa-expert-llama2-13B-V1.0-GGUF](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0-GGUF)|
 
 ### Inference 
-As our LLM will 
+Curently we support 4 types of inference:
++ Using [Huggingface Transformers](https://github.com/huggingface/transformers)
++ Using [Vllm](https://github.com/vllm-project/vllm)
++ Using [llama.cpp](https://github.com/ggerganov/llama.cpp)
+
+First please install the requirements:
+```
+transformers==4.34.0
+pydantic==1.10
+flash-attn
+```
+
+The example for using transformers HuggingFace:
+
+```python 
+
+from qa_expert import get_inference_model, InferenceType
+
+def retrieve(query: str) -> str:
+    # You need to implement this retrieval function, input is a query and output is a string
+    # This can be treated as the function to call in function calling of OpenAI
+    return context
+
+model_inference = get_inference_model(InferenceType.hf, "khaimaitien/qa-expert-7B-V1.0")
+answer, messages = model_inference.generate_answer(question, retriever_func)
+```
+For Vllm, you need to install Vllm (```pip install vllm```) and change the InferenceType to vllm:
+```python
+model_inference = get_inference_model(InferenceType.vllm, "khaimaitien/qa-expert-7B-V1.0")
+```
+For LLama.cpp, you need to install: [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) and transformers version >= 4.34.0
+```python
+# Please download gguf files from here: https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/tree/main
+# by: git clone https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF
+# There are 2 versions: q4_0: 4bit quantization and q8_0: 8bit quantization 
+# Note that here we need to pass an additional parameter for the folder of tokenizer.
+# model_inference = get_inference_model(InferenceType.llama_cpp, path_to_gguf, path_to_tokenizer)
+model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0-GGUF/qa-expert-7B-V1.0.q4_0.gguf", "qa-expert-7B-V1.0-GGUF")
+# If you only download the gguf file instead the whole repo: https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/resolve/main/qa-expert-7B-V1.0.q4_0.gguf
+# you can use:
+model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0.q4_0.gguf", "khaimaitien/qa-expert-7B-V1.0-GGUF")
+```
 
 ### Server Usage
 
 
 ## Fine-tuning Data
-Please take a look at the README of folder [train/README.md](train/README.md)
+Please take a look at the section **Training Data** of [train/README.md](train/README.md#training-data)
 
 ## Fine-tuning
-Please take a look at the README of folder [train/README.md](train/README.md)
-## To-Do
-
+Please take a look at [train/README.md](train/README.md)
+## Evaluation
+Please take a look at the Section **Evaluation** of [train/README.md](train/README.md#evaluation)
 ## Citation
 If you feel my work is helpful, please kindly cite as:
 ```bibtex

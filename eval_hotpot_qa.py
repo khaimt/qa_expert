@@ -86,11 +86,24 @@ def compute_containing_acc(prediction: str, truth: str) -> float:
 def evaluate_hotpot_qa(
     model_path: str = typer.Option(default="khaimaitien/qa-expert-7B-V1.0"),
     retriever_path: str = typer.Option(default="intfloat/e5-base-v2"),
-    hotpot_qa_dev_path: str = typer.Option(default=""),
+    hotpot_qa_dev_path: str = typer.Option(default="extra_data/hotpot_dev_distractor_v1_random_500.json"),
     inference_type: str = typer.Option(default="hf"),
     save_path: str = typer.Option(default=""),
     tokenizer_path: str = typer.Option(default=""),
 ):
+    """This function is used to run evaluation on hotpot_qa dataset
+
+    Args:
+        model_path (str, optional): model to evaluate. Default="khaimaitien/qa-expert-7B-V1.0"
+        retriever_path (str, optional): The retriever model to use in evaluation. Default="intfloat/e5-base-v2"
+        hotpot_qa_dev_path (str, optional): hotpot_qa file to eval. Default="eval_data/hotpot_dev_distractor_v1_random_500.json".
+        inference_type (str, optional): type of inference, you can use Vllm to reduce the evaluation time . Default="hf"
+        save_path (str, optional): where to save the inference result, if empty, inference result is not saved. Default=""
+        tokenizer_path (str, optional): path to tokenizer, this is only needed if inference_type=llama_cpp. Default=""
+
+    Returns:
+        _type_: _description_
+    """
     if len(hotpot_qa_dev_path) == 0:
         hotpot_qa_dev_path = "hotpot_dev_distractor_v1.json"
         if not os.path.exists((hotpot_qa_dev_path)):
@@ -120,11 +133,14 @@ def evaluate_hotpot_qa(
             s_indices.reverse()
             contexts = [paragraphs[index] for index in s_indices[:num_paragraphs]]
             return " ".join(contexts)
+
         try:
-            pred_answer, messages = model_inference.generate_answer(question, retrieve, verbose=False, temperature=0.001)
-        except:
-            pred_answer, messages = "",[]
-            print("exception at this question: ", question)
+            pred_answer, messages = model_inference.generate_answer(
+                question, retrieve, verbose=False, temperature=0.001
+            )
+        except Exception as e:
+            pred_answer, messages = "", []
+            print(f"exception at this question: {question}: {str(e)}")
         pred_answer = str(pred_answer)
         t2 = datetime.datetime.now()
         acc_time = (t2 - t1).total_seconds()
@@ -143,16 +159,19 @@ def evaluate_hotpot_qa(
         records.append(record)
         recall = compute_recall(pred_answer, answer)
         avg_recall_list.append(recall)
-        
+
         containing_acc = compute_containing_acc(pred_answer, answer)
         record["containing"] = containing_acc
         avg_acc_list.append(containing_acc)
-        
+
         avg_is_multi_hop = sum(is_multi_hop_acc_list) / len(is_multi_hop_acc_list)
         avg_recall = sum(avg_recall_list) / len(avg_recall_list)
         avg_acc = sum(avg_acc_list) / len(avg_acc_list)
         print(
-            f"{index + 1} / {len(examples)}, avg_time: {avg_time}, remaining time: {remaining_time}, Recall={avg_recall}, containing_acc: {avg_acc}, avg_is_multi_hop: {avg_is_multi_hop}"
+            (
+                f"{index + 1} / {len(examples)}, avg_time: {avg_time}, remaining time: {remaining_time},"
+                f" Recall={avg_recall}, containing_acc: {avg_acc}, avg_is_multi_hop: {avg_is_multi_hop}"
+            )
         )
         if len(save_path) > 0:
             utility.save_json(records, save_path)
