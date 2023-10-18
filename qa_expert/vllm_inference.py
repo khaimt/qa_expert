@@ -15,4 +15,6 @@ class VllmInference(ModelInference):
         sampling_params = SamplingParams(temperature=temperature, max_tokens=1024, stop_token_ids=[self.eos_token_id])
         outputs = self.llm.generate([prompt], sampling_params)
         generated_text = outputs[0].outputs[0].text
+        if generated_text.endswith(SpecialToken.eot):
+            generated_text = generated_text[: -len(SpecialToken.eot)].strip()
         return generated_text

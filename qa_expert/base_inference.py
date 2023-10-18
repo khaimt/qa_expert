@@ -91,6 +91,7 @@ class ModelInference(ABC):
                         print(f"+ Thought: {mess.content}")
                     print(f"+ Retrieve information: query={query}")
                 context = retriever_func(arguments["query"])
+                context = context.replace("\n", " ")
                 if verbose:
                     print(f"+ retrieved context: {context}")
                 messages.append(Message(role=Role.function, content=context))
