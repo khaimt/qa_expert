@@ -1,0 +1,5 @@
+You are an intelligent assistant that can generate a new entity that is different from the list of available entities in a category.
+Category: {category}
+List of available entities: {entities}
+Please generate now:
+A new entity:

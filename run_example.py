@@ -17,7 +17,7 @@ def build_paragraphs(text: str, para_leng: int = 1200, step_size: int = 300) -> 
 
 
 def get_paragraphs_from_folder(folder: str) -> Dict[str, Any]:
-    data_frames = {"paragraphs": [], "metadatas": [], "ids": []}
+    data_frames: Dict[str, List] = {"paragraphs": [], "metadatas": [], "ids": []}
     for name in os.listdir(folder):
         if name.endswith(".txt"):
             with open(os.path.join(folder, name), "r") as f:
@@ -33,7 +33,7 @@ def get_paragraphs_from_folder(folder: str) -> Dict[str, Any]:
 def get_batch_chunk(size: int, batch_size: int) -> List[Tuple[int, int]]:
     result = []
     for index in range(size // batch_size + 1):
-        start = index * batch_size 
+        start = index * batch_size
         end = (index + 1) * batch_size
         if end > size:
             end = size
@@ -59,28 +59,28 @@ if collection_count == 0:
     batches = get_batch_chunk(para_num, batch_size)
     t1 = datetime.datetime.now()
     for index, (start, end) in enumerate(batches):
-        vectors = embed_model.encode(data_frames["paragraphs"][start: end], normalize_embeddings=True)
+        vectors = embed_model.encode(data_frames["paragraphs"][start:end], normalize_embeddings=True)
         collection.add(
             embeddings=vectors.tolist(),
-            documents=data_frames["paragraphs"][start: end],
-            metadatas=data_frames["metadatas"][start: end],
-            ids=data_frames["ids"][start: end]
+            documents=data_frames["paragraphs"][start:end],
+            metadatas=data_frames["metadatas"][start:end],
+            ids=data_frames["ids"][start:end],
         )
         t2 = datetime.datetime.now()
         avg_time = (t2 - t1).total_seconds() / (index + 1)
         print(f"avg_time: {avg_time} seconds, remaining time: {avg_time * (len(batches) - index - 1)} seconds")
 
 top_paragraphs = 1
+
+
 def retrieve(query: str):
-    results = collection.query(
-        query_embeddings=embed_model.encode([query]).tolist(),
-        n_results=top_paragraphs
-    )
+    results = collection.query(query_embeddings=embed_model.encode([query]).tolist(), n_results=top_paragraphs)
     paragraphs = results["documents"][0]
-    distances = results["distances"][0]
-    #for distance, para in zip(distances, paragraphs):
+    # distances = results["distances"][0]
+    # for distance, para in zip(distances, paragraphs):
     #    print(f"+++ distance={distance}, context={para}",)
     return "\n".join(paragraphs)
+
 
 from qa_expert import get_inference_model, InferenceType
 

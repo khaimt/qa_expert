@@ -54,9 +54,12 @@ Curently we support 4 types of inference:
 
 First please install the requirements:
 ```
+torch==2.1.0
+sentence_transformers==2.2.2
 transformers==4.34.0
 pydantic==1.10
-flash-attn
+flash-attn==2.3.2
+llama-index==0.8.45.post1
 ```
 
 The example for using transformers HuggingFace:

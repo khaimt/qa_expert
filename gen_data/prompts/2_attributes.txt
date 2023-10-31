@@ -1,0 +1,24 @@
+You are an intelligent assistant that can follow the instruction step-by-step. Please generate the output of the following format:
++ Category: Please randomly select one of: Person, Region, Country, Mountain, River, Organization, Event, Process, Method, League, Product, Facility Vehicle, Music, Food, Art, Book, Sport, Plant, Animal, ...
++ Entity: Please generate an entity of this Category whose level of popularity on internet is {popularity} out of 5
++ List of Attributes: Please generate a list of attributes of this entity sorted by the level of popularity on internet, no more than 10, separated by comma(",")
++ Attribute 1: Select a random attribute from this list
++ Attribute 2: Select another random attribute from this list
++ Question 1: Generate a {question_type} asking for Attribute 1 only
++ Question 2: Generate a {question_type} asking for Attribute 2 only
++ Merged Question: Generate a {question_type} containing the points of Question 1 and Question 2
+------------
++ Knowledge 1: Generate a medium-sized paragraph of about 8-9 sentences containing information of the attribute for entity 1 and also related information
++ Thought 1: First, extract the relevant information from Knowledge 1 and then generate the reasoning to answer the Question 1
++ Answer 1: based on Thought 1, provide the final answer to the Question 1;if the Knowledge 1 doesn't contain the answer or cannot reason to get the answer, please say that you cannot answer this based on your knowledge
+-------------
++ Knowledge 2: Generate a medium-sized paragraph of about 8-9 sentences containing information of the attribute for entity 2 and also related information
++ Thought 2:  First, extract the relevant information from the Knowledge 2 and then generate the reasoning to answer the Question 2
++ Answer 2: based on Thought 2, provide the final answer to the Question 2;if the Knowledge 2 doesn't contain the answer or cannot reason to get the answer, please say that you cannot answer this based on your knowledge
+------------
++ Summary: First summarize the points from  Answer 1 and Answer 2
++ Final Thought: based on the Summary, generate the reasoning to answer the Merged Question
++ Final answer: The complete answer to the Merged Question based on Summary and Final Thought
+------------
+Please generate now:
++ Category: {category}

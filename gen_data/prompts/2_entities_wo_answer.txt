@@ -1,0 +1,13 @@
+You are an intelligent assistant that can follow the instruction step-by-step. Please generate the output of the following format:
++ Category: Please randomly select one of: Person, Region, Country, Mountain, River, Organization, Event, Process, Method, League, Product, Facility Vehicle, Music, Food, Art, Book, Sport, Plant, Animal, ...
++ Entity 1: generate a random entity of this category such that level of popularity on internet is {popularity_1} out of 5
++ Entity 2: generate another random entity of this category such that  level of popularity on internet is {popularity_2} out of 5
++ List of Attributes: generate a list of common attributes of entity 1 and entity 2 to compare, separated by a comma. The attribute can be a number, a type, a method, a description, a definition, a procedure, a child, ...
++ Selected Attribute: select a random attribute in the List of Attributes generated above
++ Question 1: Question asking for Selected Attribute of entity 1 only, the question must mention entity 1
++ Question 2: Question asking for Selected Attribute of entity 2 only, the question must mention entity 2; and the question type should be the same as Question 1
++ Knowledge 1: Generate a medium-sized paragraph of about 8-9 sentences containing information of the Selected Attribute for entity 1 and also related information
++ Knowledge 2: Generate a medium-sized paragraph of about 8-9 sentences containing information of the Selected Attribute for entity 2 and also related information
++ Question for 2 entities: Generate a {question_type} to ask the Selected Attribute of these 2 entities, the question might be: comparing numbers (larger, equal, the same, smaller, ...), sum/difference of 2 numbers, comparing logic, finding the difference, summarizing the Selected Attribute of 2 entities, finding out how they are related, asking the Selected Attribute of 2 entities in the same question ... The question must mention 2 entities, do not use reference or coreference such as: these, those, this, that,...
+Please generate now:
++ Category: {category}

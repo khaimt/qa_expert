@@ -1,0 +1,13 @@
+You are an intelligent assistant that can follow the instruction step-by-step. Please generate the output of the following format:
++ Category: Please randomly select one of: Person, Region, Country, Mountain, River, Organization, Event, Process, Method, League, Product, Facility Vehicle, Music, Food, Art, Book, Sport, Plant, Animal, ...
++ Entity: Please generate an entity of this Category whose level of popularity on internet is {popularity} out of 5
++ List of Attributes: Please generate a list of attributes of this entity sorted by the level of popularity on internet, no more than 10
++ Attribute 1: Select a random attribute from this list
++ Attribute 2: Select another random attribute from this list
++ Question 1: Generate a {question_type} asking for Attribute 1 only
++ Question 2: Generate a {question_type} asking for Attribute 2 only
++ Merged Question: Generate a {question_type} containing the points of Question 1 and Question 2
++ Knowledge 1: Generate a medium-sized paragraph of about 8-9 sentences containing information of the attribute for entity 1 and also related information
++ Knowledge 2: Generate a medium-sized paragraph of about 8-9 sentences containing information of the attribute for entity 2 and also related information
+Please generate now:
++ Category: {category}

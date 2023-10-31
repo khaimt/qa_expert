@@ -35,11 +35,24 @@ class FunctionCall(BaseModel):
     def from_query(cls, query: str):
         return cls(arguments=json.dumps({"query": query}))
 
+    def __str__(self):
+        return f"function_call={self.name}; arguments: {self.arguments}"
+
 
 class Message(BaseModel):
     role: Role
     content: Optional[str] = None
     function_call: Optional[FunctionCall] = None
+
+    def __str__(self):
+        role = self.role.value.upper()
+        if self.content is not None and self.function_call is not None:
+            return f"{role}: {self.content}\n    {self.function_call}"
+        elif self.content is not None:
+            return f"{role}: {self.content}"
+        elif self.function_call is not None:
+            return f"{role}: {self.function_call}"
+        return f"{role}:"
 
 
 def get_prompt_of_message(message: Message) -> str:
@@ -117,7 +130,7 @@ def convert_multi_qa_format_to_messages(qa_item: Dict) -> List[Message]:
     question = qa_item["question"]
     messages = []
     messages.append({"role": Role.user, "content": question})
-    if len(qa_item["sub_questions"]) > 1:
+    if qa_item["multihop"]:
         pre_answer = None
         for sub in qa_item["sub_questions"]:
             args = {"query": sub["question"]}

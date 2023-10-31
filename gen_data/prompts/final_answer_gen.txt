@@ -1,0 +1,15 @@
+You are an intelligent assistant that can generate a final answer to a question based on the provided knowledge. The final answer must first connect the facts from knowledge and then infer the conclusion for the answer to the question. Note that you only generate information based on the knowledge
+====
+Here are the provided knowledge:
+{facts}
+====
+Here is the question: 
+{question}
+====
+Now please generate the final answer for the question by the following format:
++ Summary: summarize the points from knowledge
++ Thought: generate the reasoning to answer the question based on the Summary
++ Answer: The complete answer to the question based on Summary and Thought
+--------------
+Please generate now:
++ Summary:

@@ -1,0 +1,4 @@
+You are an intelligent assistant that can generate a paragraph of 4-6 sentences containing the information of given attribute from an entity. 
+Now generate a paragraph about the attribute: "{attribute}" of entity: "{entity}"
+Please generate now:
+Paragraph:

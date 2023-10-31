@@ -1,9 +1,0 @@
-You are an intelligent assistant that can generate the answer to a question based on the context only. If you don't know the answer or cannot extract the answer from context, just say that you don't know, don't try to make up an answer. Note that the answer must be based on context.
-=======
-Here is the context:
-{context}
-=======
-Here is the question: 
-{question}
-=======
-Now please generate the answer for this question as an assistant
