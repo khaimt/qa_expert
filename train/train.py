@@ -1,8 +1,11 @@
 # mypy: ignore-errors
+# This script is written based on: https://github.com/MeetKai/functionary/blob/main/functionary/train/train_lora.py
 import os
 import sys
 from typing import Dict
 from datasets import load_dataset
+import json
+from train.custom_datasets import PackedDataset, CustomDataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -24,17 +27,22 @@ from transformers import (
     AutoTokenizer,
     LlamaTokenizer,
     BitsAndBytesConfig,
-    MistralForCausalLM,
 )
 import torch
 import math
-from qa_expert.prompt_utils import SpecialToken, preprare_training_inputs, convert_multi_qa_format_to_messages
+from qa_expert.prompt_utils import (
+    SpecialToken,
+    preprare_training_inputs_batch,
+    convert_multi_qa_format_to_messages,
+    get_additional_tokens,
+)
 import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
 import random
 from torch.utils.data import DataLoader
-from transformers import DataCollatorForLanguageModeling, DataCollatorForSeq2Seq, DataCollatorWithPadding
+from train.monkey_patched_mistral_packed_attention_mask import MistralForCausalLM
+import deepspeed
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", "0"))
 print("local rank: ", LOCAL_RANK)
@@ -46,9 +54,9 @@ class DataCollatorForMaskingLabels:
     This will reduce the training time considerably when your data points are not uniform in terms of length
     """
 
-    def __init__(self, tokenizer, padding_side="left") -> None:
+    def __init__(self, tokenizer) -> None:
         self.tokenizer = tokenizer
-        self.padding_side = padding_side
+        self.padding_side = self.tokenizer.padding_side
 
     def __call__(self, examples, return_tensors=None) -> Any:
         input_lengs = []
@@ -84,12 +92,7 @@ class ModelArguments:
         default=4096,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
     )
-
-
-@dataclass
-class PaddingArguments:
-    padding: Optional[str] = field(default="longest")
-    max_sequence_length: Optional[int] = field(default=4096)
+    qlora: bool = field(default=False, metadata={"help": "whether using qlora or not"})
 
 
 @dataclass
@@ -99,6 +102,7 @@ class DataArguments:
     hf_data_path: str = field(
         default="khaimaitien/qa-expert-multi-hop-qa-V1.0", metadata={"help": "dataset from HF hub"}
     )
+    packing: bool = field(default=False, metadata={"help": "Whether use packing or not"})
 
 
 @dataclass
@@ -148,14 +152,20 @@ def find_all_linear_names(model):
     return list(lora_module_names)
 
 
-def get_device_map() -> Optional[Dict]:
+def get_device_map(training_args: TrainingArguments, model_args: ModelArguments) -> Optional[Dict]:
+    device_map = None
     world_size = int(os.environ.get("WORLD_SIZE", 1))
     ddp = world_size != 1
-    device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)} if ddp else None
+    if model_args.qlora:
+        if ddp and training_args.fsdp:
+            print("FSDP is incompatible with QLORA")
+        device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)} if ddp else None
+        if len(training_args.fsdp) > 0 or deepspeed.is_deepspeed_zero3_enabled():
+            print("FSDP and ZeRO3 are both currently incompatible with QLoRA.")
     return device_map
 
 
-def load_model(training_args, model_args, tokenizer):
+def load_model(data_args: DataArguments, training_args: TrainingArguments, model_args: ModelArguments, tokenizer: Any):
     # Set RoPE scaling factor
     config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path)
     if model_args.model_type == "llama":
@@ -167,24 +177,47 @@ def load_model(training_args, model_args, tokenizer):
             config.rope_scaling = {"type": "linear", "factor": scaling_factor}
         config.use_cache = False
 
-    model = AutoModelForCausalLM.from_pretrained(
+    compute_dtype = torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32)
+
+    use_flash_attention_2 = True
+    if data_args.packing:
+        print_rank0("do not use flash attention because of using packing")
+        use_flash_attention_2 = False  # currently packing is only possible when use_flash_attention_2=False
+    if data_args.packing:  # have to monkey-patch
+        model_class = LlamaForCausalLM
+    else:
+        model_class = transformers.AutoModelForCausalLM
+
+    print_rank0("QLORA: ", model_args.qlora)
+
+    model = model_class.from_pretrained(
         model_args.model_name_or_path,
         config=config,
-        device_map=get_device_map(),
+        device_map=get_device_map(training_args, model_args),
         trust_remote_code=True,
-        use_flash_attention_2=True,
-        quantization_config=create_bnb_config(),
+        use_flash_attention_2=use_flash_attention_2,
+        quantization_config=BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            use_flash_attention_2=use_flash_attention_2,
+            bnb_4bit_compute_dtype=compute_dtype,
+        )
+        if model_args.qlora
+        else None,
     )
     print_rank0("model = ", model)
     model.resize_token_embeddings(len(tokenizer))
     model.config.pad_token_id = tokenizer.pad_token_id
     model.gradient_checkpointing_enable()
-    model = prepare_model_for_kbit_training(model)
+    if model_args.qlora:
+        model = prepare_model_for_kbit_training(model)
 
     modules = find_all_linear_names(model)
     print_rank0("linear modules: ", modules)  # ["query_key_value"]
 
     model = get_peft_model(model, create_peft_config(modules))
+    model.config.use_cache = False
     print_trainable_parameters(model)
     return model
 
@@ -225,7 +258,7 @@ def print_trainable_parameters(model):
 
 
 def print_some_examples(ds, tokenizer):
-    data_loader = DataLoader(ds, batch_size=3, collate_fn=DataCollatorForMaskingLabels(tokenizer, "left"))
+    data_loader = DataLoader(ds, batch_size=3)
     count = 0
     for batch in data_loader:
         if count == 0:
@@ -252,74 +285,78 @@ def print_some_examples(ds, tokenizer):
             break
 
 
+def read_dataset(data_args: DataArguments, training_args: TrainingArguments, tokenizer: Any, ds_type: str):
+    ds_class = CustomDataset
+    if data_args.packing:
+        ds_class = PackedDataset  # if packing --> Use PackedDataset
+
+    # The way we read dataset is:
+    # Rank 0 will process the dataset and save the result to cached_folder, other ranks will read from the cached_folder
+    cached_folder = os.path.join(training_args.output_dir, f"{ds_type}_cached")
+
+    if training_args.local_rank > 0:  # If this is not rank 0, stay here, wait for rank 0 to process the data
+        print(f"process: {LOCAL_RANK} wait for main process to prepare the training data")
+        torch.distributed.barrier()
+    else:  # rank 0 process the data and save to cached_folder
+        if not os.path.exists(training_args.output_dir):
+            os.mkdir(training_args.output_dir)
+        if not os.path.exists(cached_folder):
+            os.mkdir(cached_folder)
+
+        data_path = data_args.train_path if ds_type == "train" else data_args.validation_path
+
+        with open(data_path, "r") as file:
+            raw_data = json.loads(file.read())
+
+        print(f"{ds_type} size: : {len(raw_data)}")
+        # ignore_cached=True to ignore the cached if exist, rank 0 will always process the data
+        ds = ds_class(raw_data, tokenizer, cached_folder=cached_folder, ignore_cached=True)
+        print(f"process: {LOCAL_RANK} finish processing data")
+        torch.distributed.barrier()  # allow other ranks to execute
+
+    # All ranks will read the processed data from cached_path created by rank 0
+    ds = ds_class(None, tokenizer, cached_folder=cached_folder, ignore_cached=False)
+    if LOCAL_RANK == 0:
+        ds.stat()  # print some statistics about the dataset
+    return ds
+
+
 def train():
     set_seed(100)
-    argument_parser = transformers.HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments, PaddingArguments)
-    )
-    model_args, data_args, training_args, padding_args = argument_parser.parse_args_into_dataclasses()
+    argument_parser = transformers.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
+    model_args, data_args, training_args = argument_parser.parse_args_into_dataclasses()
     pretrained_model = model_args.model_name_or_path
 
     # initialize tokenizer
     # if model_args.model_type == "llama":
-    tokenizer = LlamaTokenizer.from_pretrained(pretrained_model, legacy=True)
+    tokenizer = LlamaTokenizer.from_pretrained(
+        pretrained_model, legacy=True, model_max_length=model_args.model_max_length
+    )
     tokenizer.pad_token = tokenizer.eos_token  # Llama needs this
     if model_args.model_type == "mistral":
         print_rank0("set padding_side = left for Mistral")
         tokenizer.padding_side = "left"
-    added_tokens = [tok.value for tok in SpecialToken]
-    print("added token: ", added_tokens)
+    added_tokens = get_additional_tokens()
+    print_rank0("added token: ", added_tokens)
     tokenizer.add_tokens(added_tokens)
-    print("total number of tokens: ", len(tokenizer))
-    print("tokenizer: ", tokenizer)
+    print_rank0("total number of tokens: ", len(tokenizer))
+    print_rank0("tokenizer: ", tokenizer)
 
     # read data
-    if data_args.train_path:
-        ds = load_dataset("json", data_files={"train": data_args.train_path, "validation": data_args.validation_path})
-    elif data_args.hf_data_path:
-        ds = load_dataset(data_args.hf_data_path)
-    print(ds)
-    print_rank0(f"padding_args: padding={padding_args.padding}, max_length: {padding_args.max_sequence_length}")
-
-    def generate_prompt(example):
-        messages = convert_multi_qa_format_to_messages(example)
-        input_dic = preprare_training_inputs(
-            messages, tokenizer, padding=padding_args.padding, max_length=padding_args.max_sequence_length
-        )
-        return input_dic
-
-    original_columns = list(ds["train"].features.keys())
-    print_rank0("original columns: ", original_columns)
-    ds = ds.shuffle().map(generate_prompt, remove_columns=original_columns)
-    print_rank0("ds after removing columns: ", ds)
-    # just print out to see if there are any errors
-    print_some_examples(ds["train"], tokenizer)
-    model = load_model(training_args, model_args, tokenizer)
-
-    train_ds, valid_ds = ds["train"], ds["validation"]
+    train_ds = read_dataset(data_args, training_args, tokenizer, "train")
+    valid_ds = read_dataset(data_args, training_args, tokenizer, "validation")
     print_rank0(f"train_size: {len(train_ds)}; validation_size: {len(valid_ds)}")
+
+    print_some_examples(train_ds, tokenizer)
+    model = load_model(data_args, training_args, model_args, tokenizer)
+
     print_rank0("training args: \n", training_args.to_json_string())
     trainer = transformers.Trainer(
         model=model,
         train_dataset=train_ds,
         eval_dataset=valid_ds,
         args=training_args,
-        data_collator=DataCollatorForMaskingLabels(tokenizer, "left"),
     )
-    model.config.use_cache = False
-
-    # Verifying the datatypes before training
-    dtypes = {}
-    for _, p in model.named_parameters():
-        dtype = p.dtype
-        if dtype not in dtypes:
-            dtypes[dtype] = 0
-        dtypes[dtype] += p.numel()
-    total = 0
-    for k, v in dtypes.items():
-        total += v
-    for k, v in dtypes.items():
-        print(k, v, v / total)
 
     print_rank0("Training ...")
     trainer.train()

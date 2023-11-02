@@ -5,6 +5,7 @@ import sys
 from qa_expert.prompt_utils import Message
 from typing import List
 import csv
+from typing import Tuple
 
 
 def read_category(path: str) -> List[str]:
@@ -80,6 +81,53 @@ def save_csv(rows, path):
         writer = csv.writer(f)
         for row in rows:
             writer.writerow(row)
+
+
+# this code is copied from: https://github.com/MeetKai/functionary/blob/main/functionary/train/custom_datasets.py#L193
+def merge_data_points_by_length(lengths: List[int], max_length: int) -> List[List[int]]:
+    """given lengths of data points, we merge them into groups such that the sum of lengths
+    in each group is less than max_length. This is known as: https://en.wikipedia.org/wiki/Bin_packing_problem
+    Here is the greedy algorithm
+    Args:
+        lengths (List[int]): _description_
+        max_length (int): _description_
+
+    Returns:
+        _type_: groups of indices: [[index1, index2, ...], [], ...]
+    """
+    items = [{"length": length, "index": i} for i, length in enumerate(lengths)]
+    items = sorted(items, key=lambda x: x["index"])
+    merges = []
+    current_sum = 0
+    current_list = []
+    for i in range(len(items)):
+        cur_length = items[i]["length"]
+        if cur_length + current_sum <= max_length:
+            current_sum += items[i]["length"]
+            current_list.append(i)
+        else:
+            merges.append(current_list)
+            current_list = [i]
+            current_sum = cur_length
+    if len(current_list) > 0:
+        merges.append(current_list)
+    result = []
+    for merge in merges:
+        sub_items = [items[index]["index"] for index in merge]
+        result.append(sub_items)
+    return result
+
+
+def get_batch_indices(size: int, batch_size: int) -> List[Tuple[int, int]]:
+    result = []
+    for i in range(size // batch_size + 1):
+        start = i * batch_size
+        end = i * batch_size + batch_size
+        if end > size:
+            end = size
+        if end > start:
+            result.append((start, end))
+    return result
 
 
 def main():

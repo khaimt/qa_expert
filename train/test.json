@@ -1,0 +1,77 @@
+[
+    {
+        "question": "When was state of emergency declared in the country the President's father is from?",
+        "answer": "20 October 1952",
+        "sub_questions": [
+            {
+                "question": "The President's father is from what country?",
+                "answer": "Kenya",
+                "paragraph": "Multiracial Americans. Since the late twentieth century, the number of African and Caribbean ethnic African immigrants have increased in the United States. Together with publicity about the ancestry of President Barack Obama, whose father was from Kenya, some black writers have argued that new terms are needed for recent immigrants. They suggest that the term \"African-American\" should refer strictly to the descendants of African slaves and free people of color who survived the slavery era in the United States. They argue that grouping together all ethnic Africans regardless of their unique ancestral circumstances would deny the lingering effects of slavery within the American slave descendant community. They say recent ethnic African immigrants need to recognize their own unique ancestral backgrounds.",
+                "long_answer": "The provided knowledge mentions that the President's father is from Kenya.\nAnswer: The President's father is from Kenya."
+            },
+            {
+                "question": "when was state of emergency declared in Kenya",
+                "answer": "20 October 1952",
+                "paragraph": "Mau Mau Uprising. On 20 October 1952, Governor Baring signed an order declaring a State of Emergency. Early the next morning, Operation Jock Scott was launched: the British carried out a mass - arrest of Jomo Kenyatta and 180 other alleged Mau Mau leaders within Nairobi. Jock Scott did not decapitate the movement's leadership as hoped, since news of the impending operation was leaked. Thus, while the moderates on the wanted list awaited capture, the real militants, such as Dedan Kimathi and Stanley Mathenge (both later principal leaders of Mau Mau's forest armies), fled to the forests.",
+                "long_answer": "The provided knowledge mentions that \"Governor Baring signed an order declaring a State of Emergency\" and the operation launched the next morning.\nAnswer: According to the provided knowledge, a State of Emergency was declared in Kenya on October 20, 1952."
+            }
+        ],
+        "final_answer": "Summary: The provided knowledge mentions that the President's father is from Kenya and a State of Emergency was declared in Kenya on October 20, 1952. Based on the knowledge provided, we know that the President's father is from Kenya and a State of Emergency was declared in Kenya on October 20, 1952. Therefore, it can be inferred that a State of Emergency was declared in the country the President's father is from.\nAnswer: According to the provided knowledge, a State of Emergency was declared in the country the President's father is from, specifically Kenya, on October 20, 1952.",
+        "meta_info": {
+            "src": "musique",
+            "llm": "wizard_lm"
+        },
+        "multihop": true,
+        "tag": "musique-train.json"
+    },
+    {
+        "meta_info": {
+            "src": "musique",
+            "llm": "gpt-3.5-turbo-instruct",
+            "selected": {
+                "q_index": 0,
+                "item_index": 2737,
+                "src": "musique_train",
+                "answerable": true
+            }
+        },
+        "sub_questions": [
+            {
+                "question": "In what place did Buddy Stewart die?",
+                "answer": "New Mexico",
+                "paragraph": "Buddy Stewart. Buddy Stewart \"(né\" Albert James Byrne, Jr; 1922 in Derry, New Hampshire — 1 February 1950 Deming, New Mexico) was an American jazz singer. His adopted stage surname is standardized in most biographies, including \"The Jazz Discography,\" as \"Stewart;\" but it was sometimes also spelled \"Stuart.\"",
+                "long_answer": "The knowledge states that Buddy Stewart died on February 1, 1950 in Deming, New Mexico.\nAnswer: Buddy Stewart died in Deming, New Mexico."
+            }
+        ],
+        "multihop": false,
+        "answer": null,
+        "final_answer": "The knowledge states that Buddy Stewart died on February 1, 1950 in Deming, New Mexico.\nAnswer: Buddy Stewart died in Deming, New Mexico.",
+        "question": "In what place did Buddy Stewart die?",
+        "tag": "musique-single_train.json"
+    },
+    {
+        "meta_info": {
+            "src": "musique",
+            "llm": "wizard_lm",
+            "selected": {
+                "q_index": 1,
+                "item_index": 988,
+                "src": "musique_train",
+                "answerable": true
+            }
+        },
+        "sub_questions": [
+            {
+                "question": "When did Israel and Turkey 's relations take a downturn?",
+                "answer": "after the 2008–09 Gaza War",
+                "paragraph": "Israel. Although Turkey and Israel did not establish full diplomatic relations until 1991, Turkey has cooperated with the State since its recognition of Israel in 1949. Turkey's ties to the other Muslim-majority nations in the region have at times resulted in pressure from Arab and Muslim states to temper its relationship with Israel. Relations between Turkey and Israel took a downturn after the 2008–09 Gaza War and Israel's raid of the Gaza flotilla. IHH, which organized the flotilla, is a Turkish charity that has been challenged on ties to Hamas and Al-Qaeda. Relations between Israel and Greece have improved since 1995 due to the decline of Israeli-Turkish relations. The two countries have a defense cooperation agreement and in 2010, the Israeli Air Force hosted Greece’s Hellenic Air Force in a joint exercise at the Uvda base. Israel is the second largest importer of Greek products in the Middle East. The joint Cyprus-Israel oil and gas explorations centered on the Leviathan gas field are an important factor for Greece, given its strong links with Cyprus. Cooperation in the world's longest sub-sea electric power cable, the EuroAsia Interconnector, has strengthened relations between Cyprus and Israel.",
+                "long_answer": "The knowledge mentions that \"Relations between Turkey and Israel took a downturn after the 2008–09 Gaza War and Israel's raid of the Gaza flotilla.\"\nAnswer: Based on the provided knowledge, Israel and Turkey's relations took a downturn after the 2008-09 Gaza War and Israel's raid of the Gaza flotilla."
+            }
+        ],
+        "multihop": false,
+        "answer": null,
+        "final_answer": "The knowledge mentions that \"Relations between Turkey and Israel took a downturn after the 2008–09 Gaza War and Israel's raid of the Gaza flotilla.\"\nAnswer: Based on the provided knowledge, Israel and Turkey's relations took a downturn after the 2008-09 Gaza War and Israel's raid of the Gaza flotilla.",
+        "question": "When did Israel and Turkey 's relations take a downturn?",
+        "tag": "musique-single_train.json"
+    }
+]

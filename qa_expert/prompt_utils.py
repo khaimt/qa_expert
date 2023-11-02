@@ -55,6 +55,10 @@ class Message(BaseModel):
         return f"{role}:"
 
 
+def get_additional_tokens() -> List[str]:
+    return [item.value for item in SpecialToken]
+
+
 def get_prompt_of_message(message: Message) -> str:
     """This function is used to create the prompt string of the message
 
@@ -143,9 +147,7 @@ def convert_multi_qa_format_to_messages(qa_item: Dict) -> List[Message]:
             )
             messages.append({"role": Role.function, "content": sub["paragraph"]})
             pre_answer = sub["long_answer"].strip()
-        messages.append(
-            {"role": Role.assistant, "content": str(pre_answer) + "\nSummary: " + qa_item["final_answer"].strip()}
-        )
+        messages.append({"role": Role.assistant, "content": str(pre_answer) + "\n" + qa_item["final_answer"].strip()})
     else:
         args = {"query": question}
         messages.append(
@@ -160,20 +162,7 @@ def convert_multi_qa_format_to_messages(qa_item: Dict) -> List[Message]:
     return [Message(**mess) for mess in messages]
 
 
-def preprare_training_inputs(
-    messages: List[Message],
-    tokenizer: Any,
-    padding: Union[str, bool] = "max_length",
-    max_length: Optional[int] = None,
-    verbose: bool = False,
-):
-    final_prompt = get_prompt_from_messages(messages)
-    if verbose:
-        print("final_prompt:\n", final_prompt)
-    max_length = max_length if max_length is not None else tokenizer.model_max_length
-    input_dic = tokenizer(final_prompt, padding=padding, max_length=max_length, truncation=True)
-    input_ids = input_dic["input_ids"]
-
+def get_labels(input_ids, tokenizer, verbose):
     labels = [-100 for _ in range(len(input_ids))]
     assistant_prefix = get_assistant_prefix_tokens(tokenizer)
     eot_token_id = tokenizer.encode(SpecialToken.eot, add_special_tokens=False)[-1]
@@ -202,5 +191,46 @@ def preprare_training_inputs(
         else:
             index += 1
 
-    input_dic["labels"] = labels
-    return input_dic
+    return labels
+
+
+def preprare_training_inputs_batch(
+    batch_messages: List[List[Message]],
+    tokenizer: Any,
+    padding: Union[str, bool] = "max_length",
+    max_length: Optional[int] = None,
+    verbose: bool = False,
+) -> List[Dict]:
+    batch_prompts = []
+    for messages in batch_messages:
+        final_prompt = get_prompt_from_messages(messages)
+        batch_prompts.append(final_prompt)
+    max_length = max_length if max_length is not None else tokenizer.model_max_length
+    batch_input_dic = tokenizer([batch_prompts], padding=padding, max_length=max_length, truncation=True)
+
+    all_labels = []
+    for i in range(len(batch_messages)):
+        input_ids = batch_input_dic["input_ids"][i]
+        labels = get_labels(input_ids, tokenizer, verbose)
+        all_labels.append(labels)
+
+    result = []
+    for i in range(len(batch_messages)):
+        result.append(
+            {
+                "input_ids": batch_input_dic["input_ids"],
+                "labels": all_labels[i],
+                "attention_mask": batch_input_dic["attention_mask"],
+            }
+        )
+    return result
+
+
+def preprare_training_inputs(
+    messages: List[Message],
+    tokenizer: Any,
+    padding: Union[str, bool] = "max_length",
+    max_length: Optional[int] = None,
+    verbose: bool = False,
+) -> Dict:
+    return preprare_training_inputs_batch([messages], tokenizer, padding, max_length, verbose)[0]
