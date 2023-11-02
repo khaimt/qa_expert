@@ -1,6 +1,6 @@
-from transformers import LlamaTokenizerFast
+from transformers import LlamaTokenizer
 from train.monkey_patched_mistral_packed_attention_mask import MistralForCausalLM
-from train import custom_datasets
+from qa_expert.train.train_lora import custom_datasets
 import torch
 import copy
 import typer
@@ -38,20 +38,20 @@ def compute_loss_from_ds(ds, model, device):
 
 
 def main(pretrained_path: str, device: str = typer.Option("cuda:0")):
-    tokenizer = LlamaTokenizerFast.from_pretrained(pretrained_path, legacy=True, model_max_length=4096)
+    tokenizer = LlamaTokenizer.from_pretrained(pretrained_path, legacy=True, model_max_length=4096)
     tokenizer.pad_token = tokenizer.unk_token
     tokenizer.add_tokens(prompt_utils.get_additional_tokens())
-
-    model = MistralForCausalLM.from_pretrained(
-        pretrained_path, torch_dtype=torch.bfloat16, device_map=device, use_flash_attention_2=False
-    )
-    model.resize_token_embeddings(len(tokenizer))
 
     raw_data = read_raw_data()
     normal_ds = custom_datasets.CustomDataset(raw_data, tokenizer)
     packed_ds = custom_datasets.PackedDataset(raw_data, tokenizer)
     print("number of data points from normal ds: ", len(normal_ds))
     print("number of data points from packed ds: ", len(packed_ds))
+    
+    model = MistralForCausalLM.from_pretrained(
+        pretrained_path, torch_dtype=torch.bfloat16, device_map=device, use_flash_attention_2=False
+    )
+    model.resize_token_embeddings(len(tokenizer))
 
     model.eval()
     normal_loss = compute_loss_from_ds(normal_ds, model, device)

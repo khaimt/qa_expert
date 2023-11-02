@@ -26,6 +26,7 @@ def map_raw_data_to_input_dic(raw_data: List[Dict], tokenizer: Any, padding: str
             if is_valid_labels(item["labels"]):
                 data_points.append(item)
             else:
+                print("invalid: ")
                 invalid_count += 1
         t2 = datetime.datetime.now()
         avg_time = (t2 - t1).total_seconds() / len(data_points)

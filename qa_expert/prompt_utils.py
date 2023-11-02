@@ -206,21 +206,22 @@ def preprare_training_inputs_batch(
         final_prompt = get_prompt_from_messages(messages)
         batch_prompts.append(final_prompt)
     max_length = max_length if max_length is not None else tokenizer.model_max_length
-    batch_input_dic = tokenizer([batch_prompts], padding=padding, max_length=max_length, truncation=True)
+    batch_input_dic = tokenizer(batch_prompts, padding=padding, max_length=max_length, truncation=True)
 
     all_labels = []
     for i in range(len(batch_messages)):
         input_ids = batch_input_dic["input_ids"][i]
         labels = get_labels(input_ids, tokenizer, verbose)
         all_labels.append(labels)
+        assert len(labels) == len(input_ids)
 
     result = []
     for i in range(len(batch_messages)):
         result.append(
             {
-                "input_ids": batch_input_dic["input_ids"],
+                "input_ids": batch_input_dic["input_ids"][i],
                 "labels": all_labels[i],
-                "attention_mask": batch_input_dic["attention_mask"],
+                "attention_mask": batch_input_dic["attention_mask"][i],
             }
         )
     return result

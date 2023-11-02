@@ -5,11 +5,17 @@ import sys
 from typing import Dict
 from datasets import load_dataset
 import json
-from train.custom_datasets import PackedDataset, CustomDataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-os.environ["WANDB_LOG_MODEL"] = "all"
+from qa_expert.prompt_utils import (
+    SpecialToken,
+    preprare_training_inputs_batch,
+    convert_multi_qa_format_to_messages,
+    get_additional_tokens,
+)
+
+from train.custom_datasets import PackedDataset, CustomDataset
 
 from peft import (
     LoraConfig,
@@ -21,10 +27,6 @@ import bitsandbytes as bnb
 
 import transformers
 from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    LlamaForCausalLM,
-    AutoTokenizer,
     LlamaTokenizer,
     BitsAndBytesConfig,
 )
@@ -140,10 +142,9 @@ def create_bnb_config():
 
 
 def find_all_linear_names(model):
-    cls = bnb.nn.Linear4bit  # if args.bits == 4 else (bnb.nn.Linear8bitLt if args.bits == 8 else torch.nn.Linear)
     lora_module_names = set()
     for name, module in model.named_modules():
-        if isinstance(module, cls):
+        if isinstance(module, bnb.nn.Linear4bit) or isinstance(module, torch.nn.Linear):
             names = name.split(".")
             lora_module_names.add(names[0] if len(names) == 1 else names[-1])
 
@@ -183,8 +184,8 @@ def load_model(data_args: DataArguments, training_args: TrainingArguments, model
     if data_args.packing:
         print_rank0("do not use flash attention because of using packing")
         use_flash_attention_2 = False  # currently packing is only possible when use_flash_attention_2=False
-    if data_args.packing:  # have to monkey-patch
-        model_class = LlamaForCausalLM
+    if data_args.packing and model_args.model_type == "mistral":  # have to monkey-patch
+        model_class = MistralForCausalLM
     else:
         model_class = transformers.AutoModelForCausalLM
 
@@ -307,6 +308,11 @@ def read_dataset(data_args: DataArguments, training_args: TrainingArguments, tok
 
         with open(data_path, "r") as file:
             raw_data = json.loads(file.read())
+            random.shuffle(raw_data)
+            if ds_type == "train":
+                raw_data = raw_data[: 1000]
+            else:
+                raw_data = raw_data[: 100]
 
         print(f"{ds_type} size: : {len(raw_data)}")
         # ignore_cached=True to ignore the cached if exist, rank 0 will always process the data
