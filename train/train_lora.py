@@ -8,12 +8,7 @@ import json
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from qa_expert.prompt_utils import (
-    SpecialToken,
-    preprare_training_inputs_batch,
-    convert_multi_qa_format_to_messages,
-    get_additional_tokens,
-)
+from qa_expert.prompt_utils import get_additional_tokens
 
 from train.custom_datasets import PackedDataset, CustomDataset
 
@@ -27,17 +22,12 @@ import bitsandbytes as bnb
 
 import transformers
 from transformers import (
+    LlamaTokenizerFast,
     LlamaTokenizer,
     BitsAndBytesConfig,
 )
 import torch
 import math
-from qa_expert.prompt_utils import (
-    SpecialToken,
-    preprare_training_inputs_batch,
-    convert_multi_qa_format_to_messages,
-    get_additional_tokens,
-)
 import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -310,9 +300,9 @@ def read_dataset(data_args: DataArguments, training_args: TrainingArguments, tok
             raw_data = json.loads(file.read())
             random.shuffle(raw_data)
             if ds_type == "train":
-                raw_data = raw_data[: 1000]
+                raw_data = raw_data[:1000]
             else:
-                raw_data = raw_data[: 100]
+                raw_data = raw_data[:100]
 
         print(f"{ds_type} size: : {len(raw_data)}")
         # ignore_cached=True to ignore the cached if exist, rank 0 will always process the data
@@ -344,7 +334,7 @@ def train():
         tokenizer.padding_side = "left"
     added_tokens = get_additional_tokens()
     print_rank0("added token: ", added_tokens)
-    tokenizer.add_tokens(added_tokens)
+    tokenizer.add_special_tokens({"additional_special_tokens": added_tokens})
     print_rank0("total number of tokens: ", len(tokenizer))
     print_rank0("tokenizer: ", tokenizer)
 

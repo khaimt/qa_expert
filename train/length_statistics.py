@@ -12,7 +12,7 @@ from gen_data import utility
 def main(pretrained_path: str, train_path: str, save_folder: str, max_length: int):
     tokenizer = LlamaTokenizerFast.from_pretrained(pretrained_path, legacy=True)
     tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.add_tokens(prompt_utils.get_additional_tokens())
+    tokenizer.add_special_tokens({"additional_special_tokens": prompt_utils.get_additional_tokens()})
 
     with open(train_path, "r") as f:
         examples = json.loads(f.read())

@@ -301,9 +301,9 @@ class MistralAttention(nn.Module):
                 raise ValueError(
                     f"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.size()}"
                 )
-            #print("---------------")
-            #print("attention_mask: ")
-            #print(attention_mask)
+            # print("---------------")
+            # print("attention_mask: ")
+            # print(attention_mask)
             attn_weights = attn_weights + attention_mask
 
         # upcast attention to fp32

@@ -3,7 +3,7 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from transformers import AutoModelForCausalLM, LlamaTokenizer
-from qa_expert.prompt_utils import SpecialToken
+from qa_expert.prompt_utils import get_additional_tokens
 from peft import PeftModel
 import torch
 import typer
@@ -15,9 +15,9 @@ def merge_weight(save_folder: str, pretrained_path: str, checkpoint: str, model_
     if model_type == "mistral":
         print("set padding_side = left for Mistral")
         tokenizer.padding_side = "left"
-    added_tokens = [tok.value for tok in SpecialToken]
+    added_tokens = get_additional_tokens()
     print("added token: ", added_tokens)
-    tokenizer.add_tokens(added_tokens)
+    tokenizer.add_special_tokens({"additional_special_tokens": added_tokens})
 
     model = AutoModelForCausalLM.from_pretrained(
         pretrained_path,
