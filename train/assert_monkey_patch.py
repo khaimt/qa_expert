@@ -1,6 +1,6 @@
 from transformers import LlamaTokenizer
 from train.monkey_patched_mistral_packed_attention_mask import MistralForCausalLM
-from qa_expert.train.train_lora import custom_datasets
+from train import custom_datasets
 import torch
 import copy
 import typer
@@ -41,24 +41,27 @@ def main(pretrained_path: str, device: str = typer.Option("cuda:0")):
     tokenizer = LlamaTokenizer.from_pretrained(pretrained_path, legacy=True, model_max_length=4096)
     tokenizer.pad_token = tokenizer.unk_token
     tokenizer.add_special_tokens({"additional_special_tokens": prompt_utils.get_additional_tokens()})
-
-    raw_data = read_raw_data()
-    normal_ds = custom_datasets.CustomDataset(raw_data, tokenizer)
-    packed_ds = custom_datasets.PackedDataset(raw_data, tokenizer)
-    print("number of data points from normal ds: ", len(normal_ds))
-    print("number of data points from packed ds: ", len(packed_ds))
-
+    
     model = MistralForCausalLM.from_pretrained(
-        pretrained_path, torch_dtype=torch.bfloat16, device_map=device, use_flash_attention_2=False
-    )
+            pretrained_path, torch_dtype=torch.bfloat16, device_map=device, use_flash_attention_2=False
+        )
     model.resize_token_embeddings(len(tokenizer))
 
     model.eval()
-    normal_loss = compute_loss_from_ds(normal_ds, model, device)
-    mk_loss = compute_loss_from_ds(packed_ds, model, device)
-    diff = math.fabs(normal_loss - mk_loss)
-    diff_percent = diff * 100 / max(normal_loss, mk_loss)
-    print(f"normal_loss: {normal_loss}, mk_loss={mk_loss}, diff_percent={diff_percent}")
+
+    raw_data = read_raw_data()
+    for padding_side in ["left", "right"]:
+        print("test padding_side: ", padding_side)
+        tokenizer.padding_side = padding_side
+        normal_ds = custom_datasets.CustomDataset(raw_data, tokenizer)
+        packed_ds = custom_datasets.PackedDataset(raw_data, tokenizer)
+        print("number of data points from normal ds: ", len(normal_ds))
+        print("number of data points from packed ds: ", len(packed_ds))
+        normal_loss = compute_loss_from_ds(normal_ds, model, device)
+        mk_loss = compute_loss_from_ds(packed_ds, model, device)
+        diff = math.fabs(normal_loss - mk_loss)
+        diff_percent = diff * 100 / max(normal_loss, mk_loss)
+        print(f"normal_loss: {normal_loss}, mk_loss={mk_loss}, diff_percent={diff_percent}%")
 
 
 if __name__ == "__main__":

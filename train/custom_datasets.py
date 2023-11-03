@@ -120,8 +120,9 @@ def create_mask_padding_left(
     lengths: List[int], model_max_length: int, sliding_window: Optional[int] = None
 ) -> torch.tensor:
     result = torch.full((model_max_length, model_max_length), float("-inf"))
-    acc_leng = model_max_length - sum(lengths)
-    for length in lengths:
+    pad_length = model_max_length - sum(lengths)
+    acc_leng = 0
+    for length in [pad_length] + lengths:
         x = get_causal_mask(length, sliding_window)
         result[acc_leng : acc_leng + length, acc_leng : acc_leng + length] = x
         acc_leng += length
