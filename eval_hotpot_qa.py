@@ -1,5 +1,5 @@
 from transformers import LlamaTokenizer, AutoModelForCausalLM, GenerationConfig
-import utility
+from gen_data import utility
 import json
 import typer
 from sentence_transformers import SentenceTransformer, util
@@ -136,7 +136,7 @@ def evaluate_hotpot_qa(
 
         try:
             pred_answer, messages = model_inference.generate_answer(
-                question, retrieve, verbose=False, temperature=0.001
+                question, retrieve, verbose=False, temperature=0.00001
             )
         except Exception as e:
             pred_answer, messages = "", []

@@ -56,7 +56,7 @@ def read_json(path):
 
 
 def save_json(data, path):
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(json.dumps(data, ensure_ascii=False, indent=4))
 
 
