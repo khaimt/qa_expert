@@ -41,10 +41,10 @@ def main(pretrained_path: str, device: str = typer.Option("cuda:0")):
     tokenizer = LlamaTokenizer.from_pretrained(pretrained_path, legacy=True, model_max_length=4096)
     tokenizer.pad_token = tokenizer.unk_token
     tokenizer.add_special_tokens({"additional_special_tokens": prompt_utils.get_additional_tokens()})
-    
+
     model = MistralForCausalLM.from_pretrained(
-            pretrained_path, torch_dtype=torch.bfloat16, device_map=device, use_flash_attention_2=False
-        )
+        pretrained_path, torch_dtype=torch.bfloat16, device_map=device, use_flash_attention_2=False
+    )
     model.resize_token_embeddings(len(tokenizer))
 
     model.eval()
