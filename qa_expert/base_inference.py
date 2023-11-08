@@ -4,6 +4,7 @@ from qa_expert.prompt_utils import get_prompt_from_messages
 from qa_expert.prompt_utils import Message, Role, FunctionCall
 import re
 import json
+from colorama import Fore, Back, Style
 
 
 def parse_function_info(function_info: str) -> Optional[FunctionCall]:
@@ -25,6 +26,23 @@ def parse_generated_content(generated_content: str) -> Message:
         r_content = None if len(content) == 0 else content
         return Message(role=Role.assistant, content=r_content, function_call=function_call)
     return Message(role=Role.assistant, content=generated_content)
+
+
+def parse_final_answer(generated_text: str) -> Tuple[Optional[str], Optional[str], str]:
+    # First check if this is the final answer of multi-hop question
+    # if multi-top, it will follows the template: answer_to_last_single_question\nSummary:xxx\nAnswer:yyy
+    # only multi-hop question contains: Summary
+    print(Fore.CYAN + f"generated_text: {generated_text}")
+    match = re.search(r"\nSummary:(?P<summary>(.|\n)*)\nAnswer:(?P<final_answer>(.|\n)*)", generated_text)
+    if match is not None:
+        print("hit match")
+        start = match.start()
+        last_question_answer = generated_text[:start].strip()
+        summary = match.group("summary").strip()
+        final_answer = match.group("final_answer").strip()
+        return last_question_answer, summary, final_answer
+    else:  # this is the answer to single question, the template is: xxx\Answer:yyy where xxx is Thought (like chain-of-thought)
+        return generated_text, None, generated_text
 
 
 class ModelInference(ABC):
@@ -79,7 +97,7 @@ class ModelInference(ABC):
         """
         messages = [Message(role=Role.user, content=question)]
         if verbose:
-            print(f"User: {question}")
+            print(Fore.RED + f"User: {question}")
         while True:
             mess = self.generate_message(messages, temperature)
             messages.append(mess)
@@ -88,14 +106,19 @@ class ModelInference(ABC):
                 query = arguments["query"]
                 if verbose:
                     if mess.content is not None:
-                        print(f"+ Thought: {mess.content}")
-                    print(f"+ Retrieve information: query={query}")
+                        print(Fore.GREEN + f"+ Thought: {mess.content}")
+                    print(Fore.BLUE + f"+ Retrieve information: query={query}")
                 context = retriever_func(arguments["query"])
                 context = context.replace("\n", " ")
                 if verbose:
-                    print(f"+ retrieved context: {context}")
+                    print(Fore.YELLOW + f"+ retrieved context: {context}")
                 messages.append(Message(role=Role.function, content=context))
             else:
                 if verbose:
-                    print(f"Reponse: {mess.content}")
+                    last_question_answer, summary, final_answer = parse_final_answer(str(mess.content))
+                    if summary is None:
+                        print(Fore.MAGENTA + f"{final_answer}" + Fore.RESET)
+                    else:
+                        print(Fore.GREEN + f"+ Thought: {last_question_answer}")
+                        print(Fore.MAGENTA + f"+ Summary: {summary}\n\nAnswer: {final_answer}" + Fore.RESET)
                 return mess.content, messages

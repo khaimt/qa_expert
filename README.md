@@ -17,7 +17,8 @@ Examples of 2-shot questions and how QA Expert LLM handle multi-hop Q&A. The lef
 
 Multi-hop Question Answering is a task that necessitates the retrieval of multiple contexts, followed by their integration to deduce the answer to the question. 
 
-QA Expert will analyze the question and the retrieval result to decide whether additional retrieval is required or if the answer should be generated. So the output of QA expert is either <b>calling retrieval function with a query </b> or <b>generating the final answer</b>, this is a little bit similar to the output of OpenAI function calling: call a function or generate text response.
+QA Expert will analyze the question, if the question is a single question, it will use the question as the query for retrieval and retrieve once. If it is a multi-hop question, it will call the function: `retrieve` multiple times with different queries and finally summarize the retrieval contexts to generate the final answer. 
+
 
 ## News
 - [2023/10/12] We released our finetuned model: <b>khaimaitien/qa-expert-7B-V1.0</b>based on [mistralai/Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) + our training data: [khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0)
@@ -31,35 +32,27 @@ QA Expert will analyze the question and the retrieval result to decide whether a
 ## Usage
 ### Model Download
 
-Below are the finetuned models. Basically from evaluation we found that <b>the 7B model - [khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) is better than 13B model - [khaimaitien/qa-expert-llama2-13B-V1.0](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0)</b>, this might be due to the superiority of the base model [Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) over [Llama-2-13b-hf](https://huggingface.co/NousResearch/Llama-2-13b-hf)
+Our model was finetuned on our **generated data** using OpenAI model (**gpt-3.5-turbo-instruct**) with [mistralai/Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) as the base model.
 
-So you should use: [khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) for better performance, latency and memory.
 | Size | Hugging Face Repo | Base Model |
 | ---  | --- | --- |
 | 7B | [khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0) | [mistralai/Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) |
-|13B| [khaimaitien/qa-expert-llama2-13B-V1.0](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0)|[NousResearch/Llama-2-13b-hf](https://huggingface.co/NousResearch/Llama-2-13b-hf)|
 
-You can also find GGUF versions:
+You can also find model in GGUF (for [Llama.cpp](https://github.com/ggerganov/llama.cpp)):
 
 | Size | Hugging Face Repo |
 | ---  | --- |
 | 7B | [khaimaitien/qa-expert-7B-V1.0-GGUF](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF) | 
-|13B| [khaimaitien/qa-expert-llama2-13B-V1.0-GGUF](https://huggingface.co/khaimaitien/qa-expert-llama2-13B-V1.0-GGUF)|
-
 ### Inference 
-Curently we support 4 types of inference:
+Curently we support 3 types of inference:
 + Using [Huggingface Transformers](https://github.com/huggingface/transformers)
 + Using [Vllm](https://github.com/vllm-project/vllm)
 + Using [llama.cpp](https://github.com/ggerganov/llama.cpp)
 
+
 First please install the requirements:
-```
-torch==2.1.0
-sentence_transformers==2.2.2
-transformers==4.34.0
-pydantic==1.10
-flash-attn==2.3.2
-llama-index==0.8.45.post1
+```shell
+pip install -r requirements.txt
 ```
 
 The example for using transformers HuggingFace:
@@ -76,25 +69,42 @@ def retrieve(query: str) -> str:
 model_inference = get_inference_model(InferenceType.hf, "khaimaitien/qa-expert-7B-V1.0")
 answer, messages = model_inference.generate_answer(question, retriever_func)
 ```
-For Vllm, you need to install Vllm (```pip install vllm```) and change the InferenceType to vllm:
+For Vllm, you need to install Vllm (```pip install vllm==0.2.1```) and change the InferenceType to vllm:
 ```python
 model_inference = get_inference_model(InferenceType.vllm, "khaimaitien/qa-expert-7B-V1.0")
 ```
-For LLama.cpp, you need to install: [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) and transformers version >= 4.34.0
-```python
-# Please download gguf files from here: https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/tree/main
-# by: git clone https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF
-# There are 2 versions: q4_0: 4bit quantization and q8_0: 8bit quantization 
-# Note that here we need to pass an additional parameter for the folder of tokenizer.
-# model_inference = get_inference_model(InferenceType.llama_cpp, path_to_gguf, path_to_tokenizer)
-model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0-GGUF/qa-expert-7B-V1.0.q4_0.gguf", "qa-expert-7B-V1.0-GGUF")
-# If you only download the gguf file instead the whole repo: https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/resolve/main/qa-expert-7B-V1.0.q4_0.gguf
-# you can use:
-model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0.q4_0.gguf", "khaimaitien/qa-expert-7B-V1.0-GGUF")
+For LLama.cpp, you need to install: [llama-cpp-python](https://github.com/abetlen/llama-cpp-python)
+
+You need to download gguf files (the whole folder) from here: [khaimaitien/qa-expert-7B-V1.0-GGUF](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/tree/main) by git clone:
+```shell
+git clone https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF
 ```
+Then pass the downloaded folder to the: get_inference_model. The default quantized model to be used is: q4_0, you can also use: q8_0 or f16
+```python
+# Use q4_0
+model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0-GGUF")
+# Use q8_0
+model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0-GGUF", **{"data_type": "q8_0"})
+```
+### Examples
 
-### Server Usage
+You can run ```run_example.py```. This example allows you to pass in a folder (**--data-folder**) containing the .txt files, it will read all .txt files inside the folder and split them into paragraphs, then paragraphs are represented as vectors by an embedding model (here, I use: [intfloat/e5-base-v2](https://huggingface.co/intfloat/e5-base-v2)) to be indexed in a vector DB (Here we use [Chromadb](https://www.trychroma.com/)). The retrieve function will search over indexed paragraphs to find the most relevant one.
 
+```shell 
+python run_example  --data-folder extra_data/test_data/cities --qa-model khaimaitien/qa-expert-7B-V1.0 --inference-type hf
+```
+Options:
++ **--data-folder** (default=extra_data/test_data/cities): The folder containing the .txt files to create indexed paragraphs for retrieval
++ **--qa-model**: The path to the model Hugging Face path or local folder
++ **--inference-type**: one of: vllm, hf, llama_cpp. If it is: llama_cpp, the --qa-model must be local folder downloaded from: https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF
++ **--num-paragraphs**: number of paragraphs retrieved for each query
+
+Here I already added 2 folders for testing:
++ **extra_data/test_data/cities**: List of 100 cities in United States, each is associated with a .txt file containing text from Wikipedia
++ **extra_data/test_data/states**: List of 50 states in United States, each is associated with a .txt file containing text from Wikipedia
+
+Some results: 
+  
 
 ## Fine-tuning Data
 Please take a look at the section **Training Data** of [train/README.md](train/README.md#training-data)

@@ -1,22 +1,71 @@
 # Fine-tuning
-We chose to use Qlora fine-tuning to reduce the memory usage. Our model ([khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0)) was trained on <b>1 RTX A6000</b> from [vast.ai]([vast.ai](https://vast.ai/)). It took around <b>12 hours</b> for 2 epochs on our training data.
 
 ## Content
 - [Fine-tuning](#fine-tuning)
   - [Content](#content)
+  - [Training Data Creation](#training-data-creation)
+    - [Format](#format)
+    - [Generate New Training Data](#generate-new-training-data)
+      - [Multi-hop Questions asking about an attribute of 2 entities in a question](#multi-hop-questions-asking-about-an-attribute-of-2-entities-in-a-question)
+      - [Multi-hop Questions asking about 2 attributes of an entity in a question](#multi-hop-questions-asking-about-2-attributes-of-an-entity-in-a-question)
   - [Installation](#installation)
   - [Training script](#training-script)
     - [Single GPU](#single-gpu)
     - [Multiple GPU](#multiple-gpu)
   - [Evaluation](#evaluation)
   - [Training Data](#training-data)
-    - [Format](#format)
+    - [Format](#format-1)
     - [Single questions:](#single-questions)
     - [Multi-hop questions](#multi-hop-questions)
       - [Musique](#musique)
       - [Generate training data](#generate-training-data)
       - [Script to generate Multi-hop training data](#script-to-generate-multi-hop-training-data)
 
+## Training Data Creation 
+Each multi-hop question can be handled by decomposing it into single questions. This datasets contains multi-hop questions and their decomposed questions. We also add single questions to this dataset to make sure that the trained model is able to handle any kind of questions.
+
+### Format 
+Each data point is a Json:
++ *src*: source of data point: squad.json, drop.json, boolq.json, musicque.json or gen_qa.json
++ *question*: the question, either single question or multi-hop questions
++ *inal_answer*: the final answer of the question --> model will generate this answer in the end
++ *answer*: span answer or None --> please ignore this, just an additional field of information
++ *sub_questions*: List of single questions to answer to answer the multi-hop question. If len(sub_questions) == 1 --> this is *single question*, *not multi-hop question*
+    + *question*: the single question to ask
+    + *answer*: the span answer of None or missing --> please ignore this, just an additional field of information
+    + *long_answer*: the complete answer of this single question
+    + *paragraph*: the context of the single question (this is considered as the retrieved context of the single question)
+    + *unanswerable*: = True if this question is unanswerable --> you can ignore this because long_answer, note this field might be missing, default value is False.
+
+We both generate new training data and make use of available multi-hop Q&A data.
+### Generate New Training Data
+We found that not much available public training data for multi-hop Q&A so we decided to create new training data using **gpt-3.5-turbo-instruct** - an OpenAI Model. Actually we create multi-hop questions in 2 categories:
+
+#### Multi-hop Questions asking about an attribute of 2 entities in a question
+
+Here are some examples for these questions, **entities** are highlighted.
+
++ In which year were the **Seattle Public Library** and **Denver Public Library** built?
++ Is **Kailua Beach** more popular than **Waikiki Beach**?
++ How do the **Giant Anteater** and the **Lesser Anteater** differ in their reproduction processes?
+  
+Here is the flow to generate this kind of question:
+The flow is:
++ Step 1: choose a random category (from <b>../gen_data/other_files/sub_categories.txt</b>)
++ Step 2: generate 2 entries from this category
++ Step 3: generate a list of common attributes of these 2 entities
++ Step 4: Choose a random attribute from the generated list
++ Step 5: Generate question 1 asking for 
++ Step 5: Generate question 1 asking for the attribute of entry 1
++ Step 6: Generate question 2 asking for the attribute of entry 2
++ Step 7: Generate paragraph 1 containing the attribute of entry 1
++ Step 8: Generate paragraph 2 containing the attribute of entry 2
++ Step 9: Generate answer 1 for question 1 based on paragraph 1
++ Step 10: Generate answer 2 for question 2 based on paragraph 2
++ Step 11: Generate the thought for combining answer 1 and answer 2 to answer the <b>multi-hop question</b>
++ Step 12: Generate final answer of <b>multi-hop question</b>
+
+#### Multi-hop Questions asking about 2 attributes of an entity in a question
 ## Installation
 You first need to install requirements:
 

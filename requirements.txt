@@ -1,12 +1,8 @@
-#--find-links https://download.pytorch.org/whl/torch_stable.html
-torch==2.1
-bitsandbytes==0.41.1
-peft==0.5.0
-datasets==2.8.0
-transformers==4.34.0
-pydantic==1.10.13
 scipy==1.11.3
-typer==0.7.0
-#vllm==0.2.0
+typer==0.9.0
 sentence_transformers==2.2.2
-# pip install flash-attn --no-build-isolation
+accelerate==0.21.0
+sentencepiece==0.1.99
+pydantic==1.10.13
+transformers==4.34.0
+chromadb==0.3.23
