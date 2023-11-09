@@ -10,7 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from qa_expert.prompt_utils import get_additional_tokens
 
-from train.custom_datasets import PackedDataset, CustomDataset
+from train.custom_datasets import FAPackedDataset, CustomDataset
 
 from peft import (
     LoraConfig,
@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 import random
 from torch.utils.data import DataLoader
-from train.monkey_patched_mistral_packed_attention_mask import MistralForCausalLM
+from train.new_mistral import MistralForCausalLM
 import deepspeed
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", "0"))
@@ -80,6 +80,7 @@ def set_seed(seed):
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="meta-llama/Llama-2-7b-hf")
     model_type: str = field(default="llama")
+    use_lora: bool = field(default=True)
     model_max_length: int = field(
         default=4096,
         metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
@@ -95,6 +96,8 @@ class DataArguments:
         default="khaimaitien/qa-expert-multi-hop-qa-V1.0", metadata={"help": "dataset from HF hub"}
     )
     packing: bool = field(default=False, metadata={"help": "Whether use packing or not"})
+    train_ratio: float = field(default=1, metadata={"help": "percentage of training data to use"})
+    validation_ratio: float = field(default=1, metadata={"help": "percentage of validation data to use"})
 
 
 @dataclass
@@ -170,10 +173,6 @@ def load_model(data_args: DataArguments, training_args: TrainingArguments, model
 
     compute_dtype = torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32)
 
-    use_flash_attention_2 = True
-    if data_args.packing:
-        print_rank0("do not use flash attention because of using packing")
-        use_flash_attention_2 = False  # currently packing is only possible when use_flash_attention_2=False
     if data_args.packing and model_args.model_type == "mistral":  # have to monkey-patch
         model_class = MistralForCausalLM
     else:
@@ -186,12 +185,13 @@ def load_model(data_args: DataArguments, training_args: TrainingArguments, model
         config=config,
         device_map=get_device_map(training_args, model_args),
         trust_remote_code=True,
-        use_flash_attention_2=use_flash_attention_2,
+        use_flash_attention_2=True,
+        torch_dtype=compute_dtype,
         quantization_config=BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_use_double_quant=True,
             bnb_4bit_quant_type="nf4",
-            use_flash_attention_2=use_flash_attention_2,
+            use_flash_attention_2=True,
             bnb_4bit_compute_dtype=compute_dtype,
         )
         if model_args.qlora
@@ -201,13 +201,13 @@ def load_model(data_args: DataArguments, training_args: TrainingArguments, model
     model.resize_token_embeddings(len(tokenizer))
     model.config.pad_token_id = tokenizer.pad_token_id
     model.gradient_checkpointing_enable()
-    if model_args.qlora:
+    if model_args.qlora and model_args.use_lora:
         model = prepare_model_for_kbit_training(model)
-
-    modules = find_all_linear_names(model)
-    print_rank0("linear modules: ", modules)  # ["query_key_value"]
-
-    model = get_peft_model(model, create_peft_config(modules))
+    if model_args.use_lora:
+        print("USE LORA TRAINING, START FINDING LINEAR LAYERS NOW")
+        modules = find_all_linear_names(model)
+        print_rank0("linear modules: ", modules)  # ["query_key_value"]
+        model = get_peft_model(model, create_peft_config(modules))
     model.config.use_cache = False
     print_trainable_parameters(model)
     return model
@@ -279,7 +279,7 @@ def print_some_examples(ds, tokenizer):
 def read_dataset(data_args: DataArguments, training_args: TrainingArguments, tokenizer: Any, ds_type: str):
     ds_class = CustomDataset
     if data_args.packing:
-        ds_class = PackedDataset  # if packing --> Use PackedDataset
+        ds_class = FAPackedDataset  # if packing --> Use PackedDataset
 
     # The way we read dataset is:
     # Rank 0 will process the dataset and save the result to cached_folder, other ranks will read from the cached_folder
@@ -295,14 +295,12 @@ def read_dataset(data_args: DataArguments, training_args: TrainingArguments, tok
             os.mkdir(cached_folder)
 
         data_path = data_args.train_path if ds_type == "train" else data_args.validation_path
-
+        data_ratio = data_args.train_ratio if ds_type == "train" else data_args.validation_ratio
         with open(data_path, "r") as file:
             raw_data = json.loads(file.read())
-            random.shuffle(raw_data)
-            if ds_type == "train":
-                raw_data = raw_data[:1000]
-            else:
-                raw_data = raw_data[:100]
+            if data_ratio < 1:
+                size = int(len(raw_data) * data_ratio)
+                raw_data = raw_data[:size]
 
         print(f"{ds_type} size: : {len(raw_data)}")
         # ignore_cached=True to ignore the cached if exist, rank 0 will always process the data
