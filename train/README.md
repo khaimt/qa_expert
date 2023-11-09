@@ -22,24 +22,23 @@
       - [Script to generate Multi-hop training data](#script-to-generate-multi-hop-training-data)
 
 ## Training Data Creation 
-Each multi-hop question can be handled by decomposing it into single questions. This datasets contains multi-hop questions and their decomposed questions. We also add single questions to this dataset to make sure that the trained model is able to handle any kind of questions.
+Each multi-hop question can be handled by decomposing it into single questions. This datasets contains multi-hop questions and their decomposed questions. We also add single questions to this dataset to make sure that the trained model is able to handle all kinds of questions.
 
 ### Format 
-Each data point is a Json:
-+ *src*: source of data point: squad.json, drop.json, boolq.json, musicque.json or gen_qa.json
-+ *question*: the question, either single question or multi-hop questions
-+ *inal_answer*: the final answer of the question --> model will generate this answer in the end
-+ *answer*: span answer or None --> please ignore this, just an additional field of information
-+ *sub_questions*: List of single questions to answer to answer the multi-hop question. If len(sub_questions) == 1 --> this is *single question*, *not multi-hop question*
-    + *question*: the single question to ask
-    + *answer*: the span answer of None or missing --> please ignore this, just an additional field of information
-    + *long_answer*: the complete answer of this single question
-    + *paragraph*: the context of the single question (this is considered as the retrieved context of the single question)
-    + *unanswerable*: = True if this question is unanswerable --> you can ignore this because long_answer, note this field might be missing, default value is False.
+Each data point is a Json with fields:
++ **question**: the question, can be single question or multi-hop question
++ **multihop**: True/False whether the question is multihop or not 
++ **sub_questions**: List of decomposed single questions from question. If the question is single question, ```len(sub_questions) == 1```
+    + **question**: single question decomposed from original multi-hop question
+    + **paragraph**: the retrieval context for the single question
+    + **long_answer**: the answer to the single question, the format is: xxx\nAnswer:yyy where xxx is the reasoning (thought) before generte answer to the question.
++ **final_answer**: The final answer to the question. If the question is multihop, this has the form: Summary:xxx\nAnswer:yyy Where xxx is the summary of anwers from decomposed single questions before generating final answer: yyy
++ **answer**: <i>Can ignore this field</i>
++ **meta_info**: contains the information about how the data point was created
++ **tag**: <i>can ignore this field</i>
 
-We both generate new training data and make use of available multi-hop Q&A data.
 ### Generate New Training Data
-We found that not much available public training data for multi-hop Q&A so we decided to create new training data using **gpt-3.5-turbo-instruct** - an OpenAI Model. Actually we create multi-hop questions in 2 categories:
+We found that not much available public training data for multi-hop Q&A so we decided to create new training data using **gpt-3.5-turbo-instruct** - an OpenAI Model. Actually we create 2 kinds of multi-hop questions:
 
 #### Multi-hop Questions asking about an attribute of 2 entities in a question
 
@@ -49,21 +48,41 @@ Here are some examples for these questions, **entities** are highlighted.
 + Is **Kailua Beach** more popular than **Waikiki Beach**?
 + How do the **Giant Anteater** and the **Lesser Anteater** differ in their reproduction processes?
   
-Here is the flow to generate this kind of question:
+Here is the flow to generate this kind of data:
 The flow is:
 + Step 1: choose a random category (from <b>../gen_data/other_files/sub_categories.txt</b>)
-+ Step 2: generate 2 entries from this category
-+ Step 3: generate a list of common attributes of these 2 entities
-+ Step 4: Choose a random attribute from the generated list
-+ Step 5: Generate question 1 asking for 
-+ Step 5: Generate question 1 asking for the attribute of entry 1
-+ Step 6: Generate question 2 asking for the attribute of entry 2
-+ Step 7: Generate paragraph 1 containing the attribute of entry 1
-+ Step 8: Generate paragraph 2 containing the attribute of entry 2
-+ Step 9: Generate answer 1 for question 1 based on paragraph 1
-+ Step 10: Generate answer 2 for question 2 based on paragraph 2
-+ Step 11: Generate the thought for combining answer 1 and answer 2 to answer the <b>multi-hop question</b>
-+ Step 12: Generate final answer of <b>multi-hop question</b>
++ Step 2: generate 2 entries from this category: **entity 1**, **entity 2**
++ Step 3: generate a list of **common attributes** of these 2 entities
++ Step 4: select a random attribute from the generated list --> **selected attribute**
++ Step 5: Generate **question 1** asking for the **selected attribute** of **entity 1**
++ Step 6: Generate **question 2** asking for the **selected attribute** of **entity 2**
++ Step 7: Generate **multi-hop question** that decomposed into **question 1** and **question 2**. This, for example, can be the question comparing the **selected attribute** of **entity 1** and **entity 2**
++ Step 8: Generate **paragraph 1** containing the information about the **selected attribute** of **entity 1**
++ Step 9: Generate the **reasoning 1** (thought) to answer **question 1** based on **paragraph 1**
++ Step 10: Generate the complete **answer 1** to the **question 1** based on the **reasoning 1**
++ Step 11: Generate **paragraph 2** containing the information about the **selected attribute** of **entity 2**
++ Step 12: Generate the **reasoning 2** (thought) to answer **question 2** based on **paragraph 2**
++ Step 13: Generate the complete **answer 2** to the **question 2** based on the **reasoning 2**
++ Step 14: summarize the points from **answer 1** and **answer 2** to generate the final answer to the **multi-hop question**
++ Step 15: Generate the reasoning (thought) to answer the **multi-hop question** based on the **summary**
++ Step 16: Generate the final answer to **multi-hop question** based on the reasoning
+
+We implement this flow using the prompt: [2_entities.txt](https://github.com/khaimt/qa_expert/blob/main/gen_data/prompts/2_entities.txt) with model: **gpt-3.5-turbo-instruct**. To make the generation more creative and diverse, we used temperature=0.7 --> 1. However, we found that with these high temperatures, the step for generating answers such as step 10, 13 and 16 would be **vulerable to hallucination**. So in reality, we split the flow into 2 parts:
+
++ Part 1 for generating questions and paragraphs (step 1 -> 8, step 11), **temperature=0.7 -> 1**, prompt=[2_entities.txt_wo_answer.txt](https://github.com/khaimt/qa_expert/blob/main/gen_data/prompts/2_entities_wo_answer.txt)
++ Part 2 is for generating reasonings and answers (step 9, 10, 12 -> 16). Prompt=[answer_gen.txt](https://github.com/khaimt/qa_expert/blob/main/gen_data/prompts/answer_gen.txt) for step 9, 10 and step 12, 13 (generating reasonings and answers for single question 1 and single question 2). Prompt = [final_answer_gent.txt](https://github.com/khaimt/qa_expert/blob/main/gen_data/prompts/final_answer_gen.txt) for step 14, 15, 16 (generating reasonings and answers for multi-hop question). Using **temperature=0** for this part.
+
+The script for generating data is:
+```shell
+python -m gen_data.gen_multi_hop_entities\
+ --category-path category_path \
+ --num-items-per-category 1 \
+ --output-folder save_folder \
+ --multi-qa-prompt gen_data/prompts/new_prompts/compare_entities_wo_answer.txt \
+ --temperature 0.7 \
+ --re-generate-answer
+```
+Please read more information about arguments in the [gen_data/gen_multi_hop_entities.py](https://github.com/khaimt/qa_expert/blob/main/gen_data/gen_multi_hop_entities.py)
 
 #### Multi-hop Questions asking about 2 attributes of an entity in a question
 ## Installation

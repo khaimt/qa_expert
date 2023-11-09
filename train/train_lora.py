@@ -323,7 +323,7 @@ def train():
 
     # initialize tokenizer
     # if model_args.model_type == "llama":
-    tokenizer = LlamaTokenizer.from_pretrained(
+    tokenizer = LlamaTokenizerFast.from_pretrained(
         pretrained_model, legacy=True, model_max_length=model_args.model_max_length
     )
     tokenizer.pad_token = tokenizer.eos_token  # Llama needs this
