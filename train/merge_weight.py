@@ -9,12 +9,9 @@ import torch
 import typer
 
 
-def merge_weight(save_folder: str, pretrained_path: str, checkpoint: str, model_type=typer.Option(default="mistral")):
+def merge_weight(save_folder: str, pretrained_path: str, checkpoint: str):
     tokenizer = LlamaTokenizer.from_pretrained(pretrained_path, legacy=True)
     tokenizer.pad_token = tokenizer.eos_token  # Llama needs this
-    if model_type == "mistral":
-        print("set padding_side = left for Mistral")
-        tokenizer.padding_side = "left"
     added_tokens = get_additional_tokens()
     print("added token: ", added_tokens)
     tokenizer.add_special_tokens({"additional_special_tokens": added_tokens})

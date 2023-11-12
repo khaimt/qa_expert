@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 import random
 from torch.utils.data import DataLoader
-from train.new_mistral import MistralForCausalLM
+from train.mk_patched_mistral import MistralForCausalLM
 import deepspeed
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", "0"))
@@ -284,6 +284,7 @@ def read_dataset(data_args: DataArguments, training_args: TrainingArguments, tok
     # The way we read dataset is:
     # Rank 0 will process the dataset and save the result to cached_folder, other ranks will read from the cached_folder
     cached_folder = os.path.join(training_args.output_dir, f"{ds_type}_cached")
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
 
     if training_args.local_rank > 0:  # If this is not rank 0, stay here, wait for rank 0 to process the data
         print(f"process: {LOCAL_RANK} wait for main process to prepare the training data")
@@ -306,7 +307,8 @@ def read_dataset(data_args: DataArguments, training_args: TrainingArguments, tok
         # ignore_cached=True to ignore the cached if exist, rank 0 will always process the data
         ds = ds_class(raw_data, tokenizer, cached_folder=cached_folder, ignore_cached=True)
         print(f"process: {LOCAL_RANK} finish processing data")
-        torch.distributed.barrier()  # allow other ranks to execute
+        if world_size > 1:  # only run this if this is training with multiple GPUs
+            torch.distributed.barrier()  # allow other ranks to execute
 
     # All ranks will read the processed data from cached_path created by rank 0
     ds = ds_class(None, tokenizer, cached_folder=cached_folder, ignore_cached=False)

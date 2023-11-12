@@ -19,6 +19,7 @@ def main(
     category_path: str = typer.Option(default="gen_data/other_files/sub_categories.txt"),
     continue_gen: bool = typer.Option(True, "--no-continue"),
     multi_qa_prompt: str = typer.Option(default="gen_data/prompts/2_entities_wo_answer.txt"),
+    gen_paragraph_prompt: str = typer.Option(default="gen_data/prompts/gen_long_paragraphs.txt"),
     temperature: float = typer.Option(default=0),
     llm: str = typer.Option(default="gpt-3.5-turbo-instruct"),
     prompt_type: str = typer.Option(default="openai"),
@@ -44,6 +45,7 @@ def main(
         "temperature": temperature,
         "llm": llm,
         "prompt_type": prompt_type,
+        "paragraph_prompt": gen_paragraph_prompt,
     }
     print("kwargs: ", kwargs)
     multi_hop_qa_path = os.path.join(output_folder, "raw_multi_hop_qa.json")

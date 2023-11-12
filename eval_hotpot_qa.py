@@ -85,49 +85,45 @@ def compute_containing_acc(prediction: str, truth: str) -> float:
 
 def evaluate_hotpot_qa(
     model_path: str = typer.Option(default="khaimaitien/qa-expert-7B-V1.0"),
-    retriever_path: str = typer.Option(default="intfloat/e5-base-v2"),
     hotpot_qa_dev_path: str = typer.Option(default="extra_data/hotpot_dev_distractor_v1_random_500.json"),
     inference_type: str = typer.Option(default="hf"),
     save_path: str = typer.Option(default=""),
-    tokenizer_path: str = typer.Option(default=""),
 ):
     """This function is used to run evaluation on hotpot_qa dataset
 
     Args:
         model_path (str, optional): model to evaluate. Default="khaimaitien/qa-expert-7B-V1.0"
-        retriever_path (str, optional): The retriever model to use in evaluation. Default="intfloat/e5-base-v2"
         hotpot_qa_dev_path (str, optional): hotpot_qa file to eval. Default="eval_data/hotpot_dev_distractor_v1_random_500.json".
         inference_type (str, optional): type of inference, you can use Vllm to reduce the evaluation time . Default="hf"
         save_path (str, optional): where to save the inference result, if empty, inference result is not saved. Default=""
-        tokenizer_path (str, optional): path to tokenizer, this is only needed if inference_type=llama_cpp. Default=""
 
     Returns:
         _type_: _description_
     """
-    if len(hotpot_qa_dev_path) == 0:
-        hotpot_qa_dev_path = "hotpot_dev_distractor_v1.json"
-        if not os.path.exists((hotpot_qa_dev_path)):
-            print("hotpot_dev_distractor_v1.json doesn't exist, start downloading now !")
-            hotpot_qa_dev_path = download_file("http://curtis.ml.cmu.edu/datasets/hotpot/hotpot_dev_distractor_v1.json")
-            print("finish downloading hotpot_dev_distractor_v1.json ")
-    model_inference: ModelInference = get_inference_model(InferenceType(inference_type), model_path, tokenizer_path)
-    retriever = SentenceTransformer(retriever_path)
+    model_inference: ModelInference = get_inference_model(InferenceType(inference_type), model_path)
+    retriever = SentenceTransformer("intfloat/e5-base-v2")
+
     examples = utility.read_json(hotpot_qa_dev_path)
     print("number of items: ", len(examples))
+
     records = []
     t1 = datetime.datetime.now()
     acc_time = 0.0
     avg_recall_list, avg_acc_list, is_multi_hop_acc_list = [], [], []
+
     for index, example in enumerate(examples):
         question = example["question"]
         answer = example["answer"]
         context = example["context"]
+
         paragraphs = [create_paragraph(p[0], p[1]) for p in context]
-        para_vectors = retriever.encode(paragraphs, normalize_embeddings=True)
+        prefix_paragraphs = [f"passage: {p}" for p in paragraphs]  # intfloat/e5-base-v2 requires to add passages:
+        para_vectors = retriever.encode(prefix_paragraphs, normalize_embeddings=True)
         num_paragraphs = 3
 
         def retrieve(query: str):
-            query_vec = retriever.encode([query], normalize_embeddings=True)
+            # intfloat/e5-base-v2 requires to add query:
+            query_vec = retriever.encode([f"query: {query}"], normalize_embeddings=True)
             scores = util.cos_sim(query_vec, para_vectors)[0].tolist()
             s_indices = np.argsort(scores).tolist()
             s_indices.reverse()
@@ -142,6 +138,7 @@ def evaluate_hotpot_qa(
             pred_answer, messages = "", []
             print(f"exception at this question: {question}: {str(e)}")
         pred_answer = str(pred_answer)
+
         t2 = datetime.datetime.now()
         acc_time = (t2 - t1).total_seconds()
         avg_time = acc_time / (index + 1)

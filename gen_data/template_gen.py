@@ -7,6 +7,11 @@ import json
 import sys
 import requests
 import datetime
+from openai import OpenAI
+import traceback
+
+
+openai_client = OpenAI()
 
 
 class CustomizedPromptGen(ABC):
@@ -114,21 +119,30 @@ def get_response_from_completion_model(input_dic: Dict) -> Dict[str, Any]:
     # print(final_prompt)
     for i in range(5):
         try:
-            response = openai.Completion.create(
+            response = openai_client.completions.create(
                 model=input_dic["llm"],
                 prompt=final_prompt,
                 temperature=input_dic.get("temperature", 0),
                 max_tokens=1024,
                 timeout=5,
             )
+            response = response.dict()
+            # response = openai.Completion.create(
+            #     model=input_dic["llm"],
+            #     prompt=final_prompt,
+            #     temperature=input_dic.get("temperature", 0),
+            #     max_tokens=1024,
+            #     timeout=5,
+            # )
             text_response = response["choices"][0]["text"]
             # print("text response: ", text_response)
             finish_reason = response["choices"][0]["finish_reason"]
             total_tokens = response["usage"]["total_tokens"]
             return {"finish_reason": finish_reason, "total_tokens": total_tokens, "response": text_response}
         except Exception as e:
+            traceback.print_exc()
             print(f"exception from OpenAI side at: {i}, error: {str(e)} ")
-            time.sleep(2)
+            time.sleep(3)
     sys.exit(1)
 
 

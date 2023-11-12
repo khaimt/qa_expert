@@ -7,3 +7,4 @@ pydantic==1.10.13
 transformers==4.34.0
 chromadb==0.3.23
 colorama==0.4.6
+requests==2.31.0

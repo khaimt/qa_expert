@@ -1,5 +1,8 @@
 from huggingface_hub import HfApi
 import typer
+from huggingface_hub import login
+
+login()
 
 api = HfApi()
 

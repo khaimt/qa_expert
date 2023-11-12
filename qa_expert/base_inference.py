@@ -32,7 +32,7 @@ def parse_final_answer(generated_text: str) -> Tuple[Optional[str], Optional[str
     # First check if this is the final answer of multi-hop question
     # if multi-top, it will follows the template: answer_to_last_single_question\nSummary:xxx\nAnswer:yyy
     # only multi-hop question contains: Summary
-    print(Fore.CYAN + f"generated_text: {generated_text}")
+    # print(Fore.CYAN + f"generated_text: {generated_text}")
     match = re.search(r"\nSummary:(?P<summary>(.|\n)*)\nAnswer:(?P<final_answer>(.|\n)*)", generated_text)
     if match is not None:
         print("hit match")

@@ -170,10 +170,15 @@ class GenAnswer(GenTask):
 class GenDataCategory(GenTask):
     def __init__(self, save_path: str, **kwargs) -> None:
         super().__init__(save_path, **kwargs)
-        self.prompt_template = utility.read_text(kwargs["prompt"])
+
         self.template_gen = FixedTemplateGen(
-            self.prompt_template, self.llm, prompt_type=kwargs.get("prompt_type", None)
+            utility.read_text(kwargs["prompt"]), self.llm, prompt_type=kwargs.get("prompt_type", None)
         )
+
+        self.paragraph_gen = PatternTemplateGen(
+            utility.read_text(kwargs["paragraph_prompt"]), self.llm, pattern=r"Paragraph:(?P<content>((.)|(\s))+)"
+        )
+
         self.num_items_per_category = kwargs.get("num_items_per_category", 30)
         self.categories = utility.read_category_lines(kwargs["category_path"])
         # we have a big number of category so we don't need to set temperature = 1
@@ -209,6 +214,63 @@ class GenDataCategory(GenTask):
                         del self.category_count[category]
                     yield category
 
+    def gen_paragraph_for_single_questions(self, cur_result: Dict) -> Tuple[Dict, int]:
+        sub_questions = cur_result["sub_questions"]
+        meta_info = cur_result["meta_info"]
+
+        cur_attrs = []
+        for name in ["attribute_1", "attribute_2", "comparison_attribute"]:
+            if name in meta_info:
+                cur_attrs.append(meta_info[name].title())
+
+        attr_list_str = meta_info["list_of_attributes"]
+        all_attributes = set([item.strip().title() for item in attr_list_str.split(",") if len(item.strip()) > 0])
+
+        not_in_attributes = []
+        for attr in cur_attrs:
+            if attr in all_attributes:
+                all_attributes.remove(attr)
+            else:
+                not_in_attributes.append(attr)
+
+        # here is the list of attributes that are not used
+        new_attributes = list(all_attributes)
+        random.shuffle(new_attributes)
+        total_tokens = 0
+        for i in range(len(sub_questions)):
+            if sub_questions[i]["paragraph"] is not None:  # only generate if paragraph is None
+                continue
+            # Get the entity and attribute to generate paragraphs
+            entity = meta_info[f"entity_{i+1}"] if f"entity_{i+1}" in meta_info else meta_info["entity"]
+            attribute = (
+                meta_info[f"attribute_{i+1}"] if f"attribute_{i+1}" in meta_info else meta_info["comparison_attribute"]
+            )
+            # generate a paragraph containing both: attribute and some random attribute in new_attributes
+            random.shuffle(new_attributes)
+            if len(new_attributes) == 0:
+                gen_attributes = [attribute]
+            else:
+                add_num = random.randint(1, min(len(new_attributes), 3))  # no more than 3
+                gen_attributes = [attribute] + new_attributes[:add_num]
+
+            random.shuffle(gen_attributes)
+
+            slot_dic = {"entity": entity, "attribute": ", ".join(gen_attributes)}
+            result = self.paragraph_gen.generate(slot_dic, temperature=1)
+            if result is None:
+                print(f"failed to generate a paragraph for: {entity}, atribute:{attribute}")
+                sys.exit(1)
+            paragraph = result["result"][0]["content"].strip()
+            total_tokens += result["total_tokens"]
+            sub_questions[i]["paragraph"] = paragraph
+            sub_questions[i]["extra_info"] = {
+                "slot_dic": slot_dic,
+                "para_num": len(paragraph),
+                "attribute": attribute,
+                "not_in_attributes_list": not_in_attributes,
+            }
+        return cur_result, total_tokens
+
     def handle_item(self, item: Any) -> Optional[Dict]:
         # here item is a category; we found that to make it more diverse we should add: catetory in
         # for example: "company in", "award in" --> to ask LLM to generate sub category
@@ -235,8 +297,11 @@ class GenDataCategory(GenTask):
                 result = self.process_output_dic(output_dic)
                 result["result"]["meta_info"]["category"] = item
                 result["result"]["meta_info"]["slot_dic"] = slot_dic
+
+                # Check if paragraphs of single questions are available, if not we will generate
+                result["result"], num_added_tokens = self.gen_paragraph_for_single_questions(result["result"])
                 if self.check_valid_result(result):
-                    result["total_tokens"] += previous_token_count
+                    result["total_tokens"] += previous_token_count + num_added_tokens
                     return result
                 else:
                     print("+++++++++ result is not valid: ")
@@ -268,12 +333,12 @@ class GenDataCategory(GenTask):
                 {
                     "question": parsed_result["Question 1"],
                     "long_answer": answer1,
-                    "paragraph": parsed_result["Knowledge 1"],
+                    "paragraph": parsed_result.get("Knowledge 1", None),
                 },
                 {
                     "question": parsed_result["Question 2"],
                     "long_answer": answer2,
-                    "paragraph": parsed_result["Knowledge 2"],
+                    "paragraph": parsed_result.get("Knowledge 2", None),
                 },
             ],
             "answer": answer_str,
