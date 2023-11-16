@@ -1,6 +1,26 @@
 # Training Data Creation 
 Each multi-hop question can be handled by decomposing it into single questions. This datasets contains multi-hop questions and their decomposed questions. We also add single questions to this dataset to make sure that the trained model is able to handle all kinds of questions.
 
+**You can download our training data from here:** [khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0)
+
+This dataset contains 25.5k for training and 3.19k for evaluation.
+
+- [Training Data Creation](#training-data-creation)
+  - [Format](#format)
+  - [Generate New Training Data](#generate-new-training-data)
+    - [Multi-hop Questions asking about an attribute of 2 entities in a question](#multi-hop-questions-asking-about-an-attribute-of-2-entities-in-a-question)
+    - [Multi-hop Questions asking about 2 attributes of an entity in a question](#multi-hop-questions-asking-about-2-attributes-of-an-entity-in-a-question)
+    - [Negative Paragraph Generation](#negative-paragraph-generation)
+    - [Single Questions](#single-questions)
+  - [Using available training datasets](#using-available-training-datasets)
+  - [Lisf of Scripts](#lisf-of-scripts)
+    - [Script for generating sub-category from given category:](#script-for-generating-sub-category-from-given-category)
+    - [Script for generating multi-hop Questions asking about an attribute of 2 entities](#script-for-generating-multi-hop-questions-asking-about-an-attribute-of-2-entities)
+    - [Script for generating multi-hop Questions asking about 2 attributes of an entity in a question](#script-for-generating-multi-hop-questions-asking-about-2-attributes-of-an-entity-in-a-question)
+    - [Script for generating data points with negative paragraphs](#script-for-generating-data-points-with-negative-paragraphs)
+    - [Script for generating answers to the single questions and final multi-hop questions](#script-for-generating-answers-to-the-single-questions-and-final-multi-hop-questions)
+
+
 ## Format 
 Each data point is a Json with fields:
 + **question**: the question, can be single question or multi-hop question
@@ -12,7 +32,11 @@ Each data point is a Json with fields:
 + **final_answer**: The final answer to the question. If the question is multihop, this has the form: Summary:xxx\nAnswer:yyy Where xxx is the summary of anwers from decomposed single questions before generating final answer: yyy
 + **answer**: <i>Can ignore this field</i>
 + **meta_info**: contains the information about how the data point was created
-+ **tag**: <i>can ignore this field</i>
++ **tag**: the information about type of data, for example:
+  + <i>musique-train.json</i>: train data from musique
+  + <i>entities-neg_train.json</i>: data points from generating question related to 2 entities with **negative paragraph**.
+  + ...
+
 
 ## Generate New Training Data
 We found that not much available public training data for multi-hop Q&A so we decided to create new training data using **gpt-3.5-turbo-instruct** - an OpenAI Model. Actually we create 2 kinds of multi-hop questions:
@@ -102,6 +126,15 @@ You can see the script for generating negative-paragraphs data points in the sec
 
 ### Single Questions
 To create data points that the question is a single question instead of multi-hop question (field ``multihop=False``), we just used the single questions in multi-hop questions
+
+## Using available training datasets
+We found that [Musique](https://github.com/StonyBrookNLP/musique) is the most suitable dataset for multi-hop Q&A for brideging entity so we made use of this. Here are the steps we process this dataset:
++ Remove data points containing single questions that are not well-formed (containing: **">>"**), such as: "Stadio Ciro Vigorito >> occupant"
++ For each single question, we generated the **complete answers** because this dataset only contains span answer for questions. Complete answers of single questions were generated using prompt: [answer_gen.txt](https://github.com/khaimt/qa_expert/blob/main/gen_data/prompts/answer_gen.txt) and complete answers of final questions were generated using prompt: [final_answer_gent.txt](https://github.com/khaimt/qa_expert/blob/main/gen_data/prompts/final_answer_gen.txt)
++ Remove data points that generated **complete answers** don't contain the span answer
+
+You can find data points of this dataset by finding ones that whose field ``tag`` contains: **"musique"**
+
 
 ## Lisf of Scripts 
 

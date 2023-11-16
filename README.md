@@ -79,42 +79,53 @@ def retrieve(query: str) -> str:
 model_inference = get_inference_model(InferenceType.hf, "khaimaitien/qa-expert-7B-V1.0")
 answer, messages = model_inference.generate_answer(question, retriever_func)
 ```
-For Vllm, you need to install Vllm (```pip install vllm==0.2.1```) and change the InferenceType to vllm:
+**For Vllm**, you need to install Vllm (```pip install vllm==0.2.1```) and change the InferenceType to vllm:
 ```python
 model_inference = get_inference_model(InferenceType.vllm, "khaimaitien/qa-expert-7B-V1.0")
 ```
-For LLama.cpp, you need to install: [llama-cpp-python](https://github.com/abetlen/llama-cpp-python)
+**For LLama.cpp**, you need to install: [llama-cpp-python](https://github.com/abetlen/llama-cpp-python)
 
-You need to download gguf files (the whole folder) from here: [khaimaitien/qa-expert-7B-V1.0-GGUF](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/tree/main) by git clone:
+You need to download one of **gguf files** from here: [khaimaitien/qa-expert-7B-V1.0-GGUF](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/tree/main). For example:
 ```shell
-git clone https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF
+wget https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/resolve/main/qa-expert-7B-V1.0.q4_0.gguf
 ```
-Then pass the downloaded folder to the: get_inference_model. The default quantized model to be used is: q4_0, you can also use: q8_0 or f16
+Then pass the downloaded folder to the: ``get_inference_model``. 
 ```python
 # Use q4_0
-model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0-GGUF")
+model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0.q4_0.gguf")
 # Use q8_0
-model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0-GGUF", **{"data_type": "q8_0"})
+model_inference = get_inference_model(InferenceType.llama_cpp, "qa-expert-7B-V1.0.q8_0.gguf")
 ```
 ### Demo
 
 #### Asking any free-domain question using Google Search API (through SERP API) as retrieval model
 You can run this to use Hugging Face Tranformers inference:
 ```shell
-python run_demo_google_search.py --qa-model khaimaitien/qa-expert-7B-V1.0 --inference-type hf
+python run_retrieval_google.py --qa-model khaimaitien/qa-expert-7B-V1.0 --inference-type hf
 ```
 
 You can also use Llama.cpp as inference type by: first **download the GGUF model**: 
 ```shell 
-git clone https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF
+wget https://huggingface.co/khaimaitien/qa-expert-7B-V1.0-GGUF/resolve/main/qa-expert-7B-V1.0.q4_0.gguf
 ```
 Then run:
 
 ```shell
-python run_demo_google_search.py --qa-model qa-expert-7B-V1.0-GGUF --inference-type llama_cpp
+python run_retrieval_google.py --qa-model qa-expert-7B-V1.0.q4_0.gguf --inference-type llama_cpp
 ```
 
-The default serper_api_key is ``e9b35305c3b0a79189b7c2dc4c37adbc587d1e65``, this is the API_KEY of my free account and limited to 2500 queries. You can use your API KEY by passing: ``--serper-api-key YOUR_KEY``
+The default serper_api_key is ``e9b35305c3b0a79189b7c2dc4c37adbc587d1e65``, this is the API_KEY of **my free account and limited to 2500 queries**. You can use your API KEY by passing: ``--serper-api-key YOUR_KEY``
+
+<p align="center">
+  <img src="assets/demo1.png">
+</p>
+<p align="center">
+Example for answering question: <b>"how is the population of Vietnam compared with Philipines"</b></p>
+
+<p align="center">
+  <img src="assets/demo2.png">
+</p>
+<p align="center">Example for answering question: <b>"what are some tourist attractions in the biggest city in Japan?" </b> </p>
 
 #### Asking questions within a folder of txt files
 You can run ```run_example.py```. This example allows you to pass in a folder (**--data-folder**) containing the .txt files, it will read all .txt files inside the folder and split them into paragraphs, then paragraphs are represented as vectors by an embedding model (here, I use: [intfloat/e5-base-v2](https://huggingface.co/intfloat/e5-base-v2)) to be indexed in a vector DB (Here we use [Chromadb](https://www.trychroma.com/)). The retrieve function will search over indexed paragraphs to find the most relevant one.

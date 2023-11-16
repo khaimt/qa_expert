@@ -24,7 +24,7 @@ Specifically, when we pack short input sequences into one sequence, the attentio
 
 <p align="center">
   <img src="../assets/cross_contamination.png", width="300", height="300">
-  <img src="../asserts/../assets/correct_packing_attention.png", width="300", height="300">
+  <img src="../assets/correct_packing_attention.png", width="300", height="300">
 </p>
 <p align="center">
 Examples of packing 2 input sequences: "good morning my name is John" and "This is a dog". The left is the attention matrix of packing with cross-contamination, the right is the correct attention matrix of packing</p>
@@ -127,7 +127,7 @@ Where:
 Here are some notes about training based on my experience:
 
 + Mistral-7B outperforms Llama-2-13b considerably althoug it is much smaller in size
-+ Using packing **saves a lot of training time**. Concretely, the number of data points is **25547**, if using packing, the number of data points is reduced to: **5173** --> the training time is almost only **1/5** of that without packing
++ **Using packing saves a lot of training time**. For example, the number of data points in training dataset is **25547**, if using packing, the number of data points is reduced to: **5173** --> the training time is almost only **1/5** of that without packing.
 + If you are using A100 to train the model, you should use deepspeed zero3 without offloading [ds_config/zero3_wo_offloading.json](ds_config/zero3_wo_offloading.json). If you are using A6000 to train the model, you should use deepspeed zero3 with offloading [ds_config/zero3.json](ds_config/zero3.json). 
 + FSDP brings about loss instability in training Mistral model, more information from [here](https://github.com/huggingface/transformers/issues/26498)
 + [vast.ai](https://vast.ai/) provides a little bit **cheaper price** than [runpod.io](https://www.runpod.io/)

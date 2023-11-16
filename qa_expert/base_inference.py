@@ -114,11 +114,13 @@ class ModelInference(ABC):
                     print(Fore.YELLOW + f"+ retrieved context: {context}")
                 messages.append(Message(role=Role.function, content=context))
             else:
-                if verbose:
-                    last_question_answer, summary, final_answer = parse_final_answer(str(mess.content))
-                    if summary is None:
+                last_question_answer, summary, final_answer = parse_final_answer(str(mess.content))
+                if summary is None:
+                    if verbose:
                         print(Fore.MAGENTA + f"{final_answer}" + Fore.RESET)
-                    else:
+                    return final_answer, messages
+                else:
+                    if verbose:
                         print(Fore.GREEN + f"+ Thought: {last_question_answer}")
                         print(Fore.MAGENTA + f"+ Summary: {summary}\n\nAnswer: {final_answer}" + Fore.RESET)
-                return mess.content, messages
+                    return f"+ Summary: {summary}\n\nAnswer: {final_answer}", messages
