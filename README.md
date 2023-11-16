@@ -134,6 +134,11 @@ Example for answering question: <b>"how is the population of Vietnam compared wi
 </p>
 <p align="center">Example for answering question: <b>"what are some tourist attractions in the biggest city in Japan?" </b> </p>
 
+<p align="center">
+  <img src="assets/demo3.png">
+</p>
+<p align="center">Example for answering question: <b>"what is the second biggest city in Japan and how many people are there in that city?" </b> </p>
+
 #### Asking questions within a folder of txt files
 You can run ```run_example.py```. This example allows you to pass in a folder (**--data-folder**) containing the .txt files, it will read all .txt files inside the folder and split them into paragraphs, then paragraphs are represented as vectors by an embedding model (here, I use: [intfloat/e5-base-v2](https://huggingface.co/intfloat/e5-base-v2)) to be indexed in a vector DB (Here we use [Chromadb](https://www.trychroma.com/)). The retrieve function will search over indexed paragraphs to find the most relevant one.
 
