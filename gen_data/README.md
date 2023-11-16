@@ -13,7 +13,7 @@ This dataset contains 25.5k for training and 3.19k for evaluation.
     - [Negative Paragraph Generation](#negative-paragraph-generation)
     - [Single Questions](#single-questions)
   - [Using available training datasets](#using-available-training-datasets)
-  - [Lisf of Scripts](#lisf-of-scripts)
+  - [Lisf of Scripts for generating data](#lisf-of-scripts-for-generating-data)
     - [Script for generating sub-category from given category:](#script-for-generating-sub-category-from-given-category)
     - [Script for generating multi-hop Questions asking about an attribute of 2 entities](#script-for-generating-multi-hop-questions-asking-about-an-attribute-of-2-entities)
     - [Script for generating multi-hop Questions asking about 2 attributes of an entity in a question](#script-for-generating-multi-hop-questions-asking-about-2-attributes-of-an-entity-in-a-question)
@@ -136,7 +136,7 @@ We found that [Musique](https://github.com/StonyBrookNLP/musique) is the most su
 You can find data points of this dataset by finding ones that whose field ``tag`` contains: **"musique"**
 
 
-## Lisf of Scripts 
+## Lisf of Scripts for generating data
 
 ### Script for generating sub-category from given category:
 ```shell 
