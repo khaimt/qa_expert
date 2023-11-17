@@ -119,7 +119,7 @@ def evaluate_hotpot_qa(
         paragraphs = [create_paragraph(p[0], p[1]) for p in context]
         prefix_paragraphs = [f"passage: {p}" for p in paragraphs]  # intfloat/e5-base-v2 requires to add passages:
         para_vectors = retriever.encode(prefix_paragraphs, normalize_embeddings=True)
-        num_paragraphs = 3
+        num_paragraphs = 1
 
         def retrieve(query: str):
             # intfloat/e5-base-v2 requires to add query:

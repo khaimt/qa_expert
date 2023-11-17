@@ -141,7 +141,7 @@ Here is the result:
 
 |Model|Recall|Accuracy of containing ground-truth|
 |---|---|---|
-|[khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0)|0.7257|0.668|
+|[khaimaitien/qa-expert-7B-V1.0](https://huggingface.co/khaimaitien/qa-expert-7B-V1.0)|0.73215|0.664|
 
 
 You can run the evaluation script at the root directory of this repo:
