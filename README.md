@@ -160,7 +160,10 @@ Some results:
 
 ## Training Data
 The training data was generated using **gpt-3.5-turbo-instruct** from OpenAI. 
-You can find more detail from: [gen_data/README.md](gen_data/README.md)
+You can find more detail from: [gen_data/README.md](gen_data/README.md).
+
++ Training data in multi-hop format: [khaimaitien/qa-expert-multi-hop-qa-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-V1.0)
++ Training data in OpenAI function calling format: [khaimaitien/qa-expert-multi-hop-qa-function-calling-format-V1.0](https://huggingface.co/datasets/khaimaitien/qa-expert-multi-hop-qa-function-calling-format-V1.0)
 ## Training
 We use **packing inputs without cross-contamination** to speed up the training. You can take a look at [train/README.md](train/README.md)
 ## Evaluation
